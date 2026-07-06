@@ -1,84 +1,38 @@
-# Upwind GitHub Automated Scanning
+# Upwind CI Scanning
 
-Two repos work together:
+This repo ships three Dockerfiles. The workflow builds each image on the runner and sends it to Upwind SCA — no registry or AWS required.
 
-```
-JaysSurfShop workflow  →  docker push ghcr.io/...
-         ↓
-Upwind GitHub App detects registry push
-         ↓
-shiftleft-automated/scan-image.yaml  →  pull + Upwind SCA scan
-         ↓
-Upwind Console → SCA tab
-```
+## Run it
 
-This is **not** the same as running the Upwind action inline in JaysSurfShop. The app orchestrates scans from `shiftleft-automated`.
+**Actions → Build and Scan → Run workflow**
 
-## 1. shiftleft-automated repo (required)
+Or push to `main`.
 
-Create (or use): **https://github.com/JustinDPerkins/shiftleft-automated**
+## Images scanned
 
-Workflow must live at exactly:
+| Service | Dockerfile | Notable finding |
+|---------|------------|-----------------|
+| `frontend` | `frontend/Dockerfile` | Next.js shop UI |
+| `chat-rag` | `services/chat-rag/Dockerfile` | **CVE-2023-50447** (pillow 10.0.1) |
+| `board-generator` | `services/board-generator/Dockerfile` | Image gen API |
 
-```
-.github/workflows/scan-image.yaml
-```
+## GitHub secrets (this repo)
 
-Template: [.github/upwind/shiftleft-automated-scan-image.yaml](../.github/upwind/shiftleft-automated-scan-image.yaml)
-
-### Secrets on shiftleft-automated
+**Settings → Secrets and variables → Actions**
 
 | Secret | Description |
 |--------|-------------|
 | `UPWIND_CLIENT_ID` | Upwind sensor credential |
 | `UPWIND_CLIENT_SECRET` | Upwind sensor credential |
-| `GHCR_READ_TOKEN` | GitHub PAT with `read:packages` to pull images from GHCR |
 
-Create PAT: **Settings → Developer settings → Personal access tokens** → `read:packages` scope.
+Results appear in **Upwind Console → SCA**.
 
-## 2. Upwind GitHub App
+## Optional: Upwind GitHub App (automated scanning)
 
-You installed the app — confirm:
+If you installed the Upwind GitHub App for org-wide scanning, it triggers when images are **pushed to a registry**. That requires:
 
-- **Repository access** includes:
-  - `shiftleft-automated` (required — app calls this workflow)
-  - `JaysSurfShop` (required — app watches pushes here)
-- Or select **All repositories**
+- A separate [`shiftleft-automated`](https://github.com/JustinDPerkins/shiftleft-automated) repo with `scan-image.yaml`
+- Registry push (GHCR or ECR) from CI
+- Upwind secrets on `shiftleft-automated`
 
-## 3. JaysSurfShop workflow
-
-[build-push.yml](../.github/workflows/build-push.yml) builds and pushes to GHCR:
-
-```
-ghcr.io/justindperkins/jays-surf-shop-frontend:<sha>
-ghcr.io/justindperkins/jays-surf-shop-chat-rag:<sha>
-ghcr.io/justindperkins/jays-surf-shop-board-generator:<sha>
-```
-
-No Upwind secrets needed on JaysSurfShop — scanning happens in `shiftleft-automated`.
-
-## 4. Test the flow
-
-1. Add secrets to `shiftleft-automated`
-2. Run **JaysSurfShop → Actions → Build and Push Images**
-3. Watch **shiftleft-automated → Actions** — Upwind app should dispatch `Upwind Shift Left Scanning` within a few minutes
-4. Check **Upwind Console → SCA** for `chat-rag` / CVE-2023-50447
-
-Manual test of scan workflow: **shiftleft-automated → Actions → Run workflow** with image:
-
-```
-ghcr.io/justindperkins/jays-surf-shop-chat-rag:latest
-```
-
-## Troubleshooting
-
-| Issue | Fix |
-|-------|-----|
-| No scan dispatched | App missing access to `shiftleft-automated` or JaysSurfShop |
-| Pull failed in shiftleft-automated | Add `GHCR_READ_TOKEN` PAT, or make GHCR package public |
-| Workflow not found | File must be `scan-image.yaml` on `main` branch |
-| Scan empty in Upwind | Confirm `UPWIND_CLIENT_ID` / `SECRET` on **shiftleft-automated** |
-
-## ECR (later)
-
-When AWS is ready, switch build-push to ECR and update `scan-image.yaml` to use `aws-actions/amazon-ecr-login` instead of GHCR.
+For this workshop repo, **Build and Scan** is the direct path — build from source, scan inline.

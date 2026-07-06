@@ -65,4 +65,4 @@ cd infrastructure/terraform && terraform destroy
 
 ## Upwind CI scanning
 
-GitHub Actions scans all three images with Upwind ShiftLeft. See **[UPWIND_GITHUB.md](./UPWIND_GITHUB.md)** for setup.
+GitHub Actions builds and scans all three images with Upwind. See **[UPWIND_GITHUB.md](./UPWIND_GITHUB.md)**.
