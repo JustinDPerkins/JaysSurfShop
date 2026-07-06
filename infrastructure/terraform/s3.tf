@@ -2,10 +2,10 @@ resource "aws_s3_bucket" "board_images" {
   bucket = "${local.name_prefix}-board-images-${data.aws_caller_identity.current.account_id}"
 
   tags = {
-    Name        = "${local.name_prefix}-board-images"
-    Purpose     = "ai-generated-surfboard-images"
-    DataClass   = "internal"
-    AISystem    = "dall-e-3"
+    Name      = "${local.name_prefix}-board-images"
+    Purpose   = "ai-generated-surfboard-images"
+    DataClass = "internal"
+    AISystem  = "dall-e-3"
   }
 }
 
@@ -36,6 +36,14 @@ resource "aws_s3_bucket_public_access_block" "board_images" {
   restrict_public_buckets = true
 }
 
+# CSPM demo: account-level BPA must allow public bucket policies
+resource "aws_s3_account_public_access_block" "demo" {
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
 # CSPM workshop finding: intentionally public bucket
 resource "aws_s3_bucket" "demo_public_assets" {
   bucket = "${local.name_prefix}-demo-public-${data.aws_caller_identity.current.account_id}"
@@ -59,6 +67,11 @@ resource "aws_s3_bucket_public_access_block" "demo_public_assets" {
 resource "aws_s3_bucket_policy" "demo_public_read" {
   bucket = aws_s3_bucket.demo_public_assets.id
 
+  depends_on = [
+    aws_s3_account_public_access_block.demo,
+    aws_s3_bucket_public_access_block.demo_public_assets,
+  ]
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -77,12 +90,4 @@ resource "aws_s3_object" "demo_customer_export" {
   source       = "${path.module}/../demo-data/customer-export.json"
   content_type = "application/json"
   etag         = filemd5("${path.module}/../demo-data/customer-export.json")
-
-  tags = {
-    DemoFinding = "public-sensitive-export"
-    DataClass   = "synthetic-pii"
-    CSPMCheck   = "s3-public-sensitive-data"
-  }
 }
-
-data "aws_caller_identity" "current" {}

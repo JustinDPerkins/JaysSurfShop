@@ -44,9 +44,12 @@ resource "aws_iam_role_policy" "ecs_secrets" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue"]
-      Resource = [aws_secretsmanager_secret.openai_api_key.arn]
+      Effect = "Allow"
+      Action = ["secretsmanager:GetSecretValue"]
+      Resource = concat(
+        [aws_secretsmanager_secret.openai_api_key.arn],
+        var.upwind_client_id != "" ? [module.upwind_integration_aws_ecs_cluster[0].sensor_secret_arn] : []
+      )
     }]
   })
 }

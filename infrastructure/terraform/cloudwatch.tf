@@ -63,7 +63,7 @@ resource "aws_cloudwatch_metric_alarm" "high_ai_usage" {
   alarm_description   = "AI SPM KPI: unusual volume of AI inference calls"
 
   tags = {
-    KPI       = "ai-inference-rate"
-    Tooling   = "ai-spm"
+    KPI     = "ai-inference-rate"
+    Tooling = "ai-spm"
   }
 }

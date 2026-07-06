@@ -41,29 +41,18 @@ Vulnerabilities are on by default: pillow CVE, exploit endpoints, path traversal
 
 ## Deploy to AWS
 
-```bash
-export TF_VAR_openai_api_key="sk-..."
-export IMAGE_TAG=latest
+One Terraform folder, two steps:
 
-chmod +x infrastructure/scripts/*.sh
-./infrastructure/scripts/build-push.sh
-./infrastructure/scripts/deploy.sh
+```bash
+./infrastructure/scripts/apply-ci.sh          # ECR + GitHub OIDC roles
+# Add AWS_DEPLOY_ROLE_ARN to repo secrets, then run "Build and Push Images" in Actions
+export TF_VAR_openai_api_key="sk-..."
+./infrastructure/scripts/deploy.sh            # ECS cluster (later)
 ```
 
-Terraform deploys misconfigs by default: public S3 with synthetic PII, overprivileged IAM, open SSH on ECS SG.
+The workflow [`.github/workflows/build-push.yml`](.github/workflows/build-push.yml) builds all three images and pushes to ECR on push to `main` (or manual dispatch). Local `./infrastructure/scripts/build-push.sh` is optional.
 
 Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
-
-### Upwind automated scanning (ECR)
-
-| Stack | Folder |
-|-------|--------|
-| App (ECS, ECR repos) | `infrastructure/terraform/` |
-| CI (GitHub OIDC roles) | `infrastructure/ci/` |
-
-Setup: **[infrastructure/ci/README.md](infrastructure/ci/README.md)** · Upwind flow: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
-
-Full setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 
 ## Project structure
 
@@ -71,9 +60,8 @@ Full setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 JaysSurfShop/
 ├── docs/WORKSHOP.md
 ├── infrastructure/
-│   ├── terraform/          # App deploy (ECS, VPC, ECR, misconfigs)
-│   ├── ci/                 # GitHub OIDC + ECR push/pull roles (separate)
-│   └── scripts/
+│   ├── terraform/          # all AWS infra
+│   └── scripts/            # apply-ci.sh, deploy.sh, build-push.sh
 ├── frontend/
 ├── services/
 └── docker-compose.yml

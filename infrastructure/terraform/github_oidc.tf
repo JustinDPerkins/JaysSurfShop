@@ -1,19 +1,6 @@
-# GitHub Actions OIDC — separate from app deployment (infrastructure/terraform)
-# Requires ECR repos to exist first (created by app terraform).
-
-resource "aws_iam_openid_connect_provider" "github" {
+# One OIDC provider per AWS account — reuse if it already exists
+data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
-
-  client_id_list = ["sts.amazonaws.com"]
-
-  thumbprint_list = [
-    "6938fd4d98bab03fa02195ae0576d5899661cfcb",
-    "1c58a3a8518e7979c638139b782e724b5d6e7e3",
-  ]
-
-  tags = {
-    Name = "${local.name_prefix}-github-oidc"
-  }
 }
 
 locals {
@@ -40,7 +27,7 @@ resource "aws_iam_role" "github_actions" {
       Effect = "Allow"
       Action = "sts:AssumeRoleWithWebIdentity"
       Principal = {
-        Federated = aws_iam_openid_connect_provider.github.arn
+        Federated = data.aws_iam_openid_connect_provider.github.arn
       }
       Condition = {
         StringEquals = {
@@ -56,7 +43,6 @@ resource "aws_iam_role" "github_actions" {
   tags = {
     Name       = "${local.name_prefix}-github-${each.key}"
     GitHubRepo = each.value.name
-    Purpose    = each.key == "deploy" ? "ecr-push" : "ecr-pull-upwind-scan"
   }
 }
 
@@ -69,7 +55,7 @@ resource "aws_iam_role_policy_attachment" "github_actions" {
 
 resource "aws_iam_policy" "github_ecr_push" {
   name        = "${local.name_prefix}-github-ecr-push"
-  description = "GitHub Actions: push to project ECR repos"
+  description = "JaysSurfShop GitHub Actions: push to ECR"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -94,7 +80,7 @@ resource "aws_iam_policy" "github_ecr_push" {
           "ecr:DescribeRepositories",
           "ecr:ListImages",
         ]
-        Resource = local.ecr_repository_arns
+        Resource = [for repo in aws_ecr_repository.services : repo.arn]
       },
     ]
   })
@@ -102,7 +88,7 @@ resource "aws_iam_policy" "github_ecr_push" {
 
 resource "aws_iam_policy" "github_ecr_pull" {
   name        = "${local.name_prefix}-github-ecr-pull"
-  description = "shiftleft-automated: pull from project ECR repos"
+  description = "shiftleft-automated: pull from ECR for Upwind scans"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -121,7 +107,7 @@ resource "aws_iam_policy" "github_ecr_pull" {
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
         ]
-        Resource = local.ecr_repository_arns
+        Resource = [for repo in aws_ecr_repository.services : repo.arn]
       },
     ]
   })

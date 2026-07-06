@@ -13,7 +13,7 @@ resource "aws_ecs_cluster" "main" {
 
 resource "aws_service_discovery_private_dns_namespace" "main" {
   name        = local.service_connect_namespace
-  description = "Private DNS for Jay's Surf Shop microservices"
+  description = "Private DNS for Jays Surf Shop microservices"
   vpc         = aws_vpc.main.id
 
   tags = {
@@ -53,75 +53,7 @@ resource "aws_ecs_task_definition" "services" {
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
   task_role_arn            = aws_iam_role.ecs_task.arn
 
-  container_definitions = jsonencode([{
-    name      = each.key
-    image     = "${aws_ecr_repository.services[each.key].repository_url}:${var.image_tag}"
-    essential = true
-
-    portMappings = [{
-      containerPort = each.value.port
-      hostPort      = each.value.port
-      protocol      = "tcp"
-      name          = each.key
-    }]
-
-    environment = concat(
-      [
-        { name = "SERVICE_NAME", value = each.key },
-        { name = "ENVIRONMENT", value = var.environment },
-        { name = "AWS_REGION", value = var.aws_region },
-        { name = "DEPLOYMENT_ID", value = local.name_prefix },
-        { name = "LOG_FORMAT", value = "json" },
-      ],
-      each.key == "frontend" ? [
-        { name = "CHAT_SERVICE_URL", value = "http://chat-rag.${local.service_connect_namespace}:8001" },
-        { name = "BOARD_SERVICE_URL", value = "http://board-generator.${local.service_connect_namespace}:8002" },
-        { name = "NEXT_PUBLIC_APP_ENV", value = var.environment },
-      ] : [],
-      each.key == "board-generator" ? [
-        { name = "S3_BUCKET", value = aws_s3_bucket.board_images.bucket },
-        { name = "AI_MODEL", value = "gpt-image-1" },
-      ] : [],
-      each.key == "chat-rag" ? [
-        { name = "AI_MODEL_CHAT", value = "gpt-4o-mini" },
-        { name = "AI_MODEL_EMBED", value = "text-embedding-3-small" },
-      ] : []
-    )
-
-    secrets = contains(["chat-rag", "board-generator", "frontend"], each.key) ? [{
-      name      = "OPENAI_API_KEY"
-      valueFrom = aws_secretsmanager_secret.openai_api_key.arn
-    }] : []
-
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.services[each.key].name
-        "awslogs-region"        = var.aws_region
-        "awslogs-stream-prefix" = each.key
-      }
-    }
-
-    healthCheck = {
-      command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.port}/health || curl -f http://localhost:${each.value.port}/api/security/posture || exit 1"]
-      interval    = 30
-      timeout     = 5
-      retries     = 3
-      startPeriod = 60
-    }
-
-    linuxParameters = {
-      initProcessEnabled = true
-    }
-
-    readonlyRootFilesystem = false
-
-    ulimits = [{
-      name      = "nofile"
-      softLimit = 65536
-      hardLimit = 65536
-    }]
-  }])
+  container_definitions = jsonencode(local.service_task_containers[each.key])
 
   tags = {
     Name    = "${local.name_prefix}-${each.key}-task"
@@ -162,6 +94,7 @@ resource "aws_ecs_service" "services" {
 
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
+  health_check_grace_period_seconds  = each.value.public ? 120 : 0
 
   depends_on = [aws_lb_listener.http]
 

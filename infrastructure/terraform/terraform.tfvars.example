@@ -1,14 +1,9 @@
-aws_region           = "us-east-1"
-project_name         = "jays-surf-shop"
-environment          = "demo"
-owner                = "security-ops"
-cost_center          = "cloud-security"
-image_tag            = "latest"
-desired_count        = 1
+aws_region   = "us-east-1"
+project_name = "jays-surf-shop"
+environment  = "demo"
 
-# See docs/WORKSHOP.md for the security demo runbook.
+# openai_api_key = "sk-..."
 
-# See docs/WORKSHOP.md for the app deploy runbook.
-# GitHub OIDC / CI roles: infrastructure/ci/
-
-# openai_api_key = "sk-..."   # Pass via TF_VAR_openai_api_key env var instead
+# Upwind ECS sensor (optional — from Upwind Console > Settings > Credentials)
+# upwind_client_id     = "..."
+# upwind_client_secret = "..."

@@ -36,10 +36,15 @@ chmod +x infrastructure/scripts/security-demo.sh
 ## AWS
 
 ```bash
+# Step 1 — ECR + GitHub roles
+./infrastructure/scripts/apply-ci.sh
+# Add AWS_DEPLOY_ROLE_ARN to JaysSurfShop GitHub secrets
+
+# Step 2 — GitHub Actions → "Build and Push Images" (or push to main)
+
+# Step 3 — ECS cluster (when ready)
 export TF_VAR_openai_api_key="sk-..."
-./infrastructure/scripts/build-push.sh
-cd infrastructure/terraform && cp terraform.tfvars.example terraform.tfvars
-terraform init && terraform apply
+./infrastructure/scripts/deploy.sh
 ```
 
 Misconfigs deploy automatically: public S3 + synthetic PII, wildcard IAM on ECS task role, SSH open on ECS security group.
@@ -47,6 +52,10 @@ Misconfigs deploy automatically: public S3 + synthetic PII, wildcard IAM on ECS 
 ```bash
 ./infrastructure/scripts/security-demo.sh exploit   # curl public customer-export.json
 ```
+
+## Upwind scanning
+
+After CI apply: add `AWS_ECR_PULL_ROLE_ARN` + Upwind credentials to **shiftleft-automated**. Copy `infrastructure/terraform/upwind-scan-image.yaml` into that repo's workflows. Push images → Upwind GitHub App triggers scan → SCA tab.
 
 ## Key endpoints
 
@@ -62,7 +71,3 @@ Misconfigs deploy automatically: public S3 + synthetic PII, wildcard IAM on ECS 
 ```bash
 cd infrastructure/terraform && terraform destroy
 ```
-
-## Upwind CI scanning
-
-GitHub Actions builds and scans all three images with Upwind. See **[UPWIND_GITHUB.md](./UPWIND_GITHUB.md)**.
