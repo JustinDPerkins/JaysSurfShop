@@ -15,14 +15,9 @@ Add these under **Settings → Secrets and variables → Actions**:
 
 ## What runs today
 
-The [deploy-aws.yml](../.github/workflows/deploy-aws.yml) workflow:
+The [upwind-scan.yml](../.github/workflows/upwind-scan.yml) workflow builds each service and runs **Upwind ShiftLeft Scan** — no AWS required.
 
-1. Builds `frontend`, `chat-rag`, and `board-generator` on the GitHub runner
-2. Runs Upwind ShiftLeft scan on each image (tag = git SHA)
-
-No AWS credentials needed — images are built and scanned locally on the runner.
-
-> ECR push and Terraform deploy are **commented out**. Uncomment when `AWS_DEPLOY_ROLE_ARN` and OIDC trust are configured.
+Run manually: **Actions → Upwind Scan → Run workflow**
 
 Images scanned:
 

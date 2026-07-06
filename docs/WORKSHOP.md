@@ -65,4 +65,4 @@ cd infrastructure/terraform && terraform destroy
 
 ## Upwind CI scanning
 
-GitHub Actions scans all three ECR images with Upwind ShiftLeft on deploy. See **[UPWIND_GITHUB.md](./UPWIND_GITHUB.md)** for secrets and org-level automated scanning setup.
+GitHub Actions scans all three images with Upwind ShiftLeft. See **[UPWIND_GITHUB.md](./UPWIND_GITHUB.md)** for setup.
