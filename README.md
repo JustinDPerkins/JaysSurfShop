@@ -54,11 +54,12 @@ Terraform deploys misconfigs by default: public S3 with synthetic PII, overprivi
 
 Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
 
-### CI + Upwind SCA
+### Upwind automated scanning
 
-**Actions → Build and Scan** builds all three Dockerfiles and scans with Upwind. Secrets: `UPWIND_CLIENT_ID`, `UPWIND_CLIENT_SECRET`
+1. **JaysSurfShop** → Actions → **Build and Push Images** (pushes to GHCR)
+2. **Upwind GitHub App** dispatches **shiftleft-automated** → scans → SCA tab
 
-Details: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
+Setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)** — Upwind secrets go on `shiftleft-automated`, not this repo.
 
 Full setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 
