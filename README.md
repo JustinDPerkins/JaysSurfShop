@@ -54,12 +54,13 @@ Terraform deploys misconfigs by default: public S3 with synthetic PII, overprivi
 
 Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
 
-### Upwind automated scanning
+### Upwind automated scanning (ECR)
 
-1. **JaysSurfShop** → Actions → **Build and Push Images** (pushes to GHCR)
-2. **Upwind GitHub App** dispatches **shiftleft-automated** → scans → SCA tab
+1. **AWS setup:** **[docs/AWS_SETUP.md](docs/AWS_SETUP.md)** — Terraform creates ECR + GitHub OIDC roles
+2. **JaysSurfShop** → **Build and Push Images** → ECR
+3. **Upwind app** → **shiftleft-automated** scans → SCA tab
 
-Setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)** — Upwind secrets go on `shiftleft-automated`, not this repo.
+Also: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 
 Full setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 

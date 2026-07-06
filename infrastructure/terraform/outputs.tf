@@ -18,6 +18,21 @@ output "ecr_repository_urls" {
   value       = { for k, v in aws_ecr_repository.services : k => v.repository_url }
 }
 
+output "github_actions_deploy_role_arn" {
+  description = "IAM role ARN for JaysSurfShop GitHub Actions (ECR push) — set as AWS_DEPLOY_ROLE_ARN secret"
+  value       = aws_iam_role.github_actions["deploy"].arn
+}
+
+output "github_actions_ecr_pull_role_arn" {
+  description = "IAM role ARN for shiftleft-automated (ECR pull) — set as AWS_ECR_PULL_ROLE_ARN secret"
+  value       = aws_iam_role.github_actions["scan"].arn
+}
+
+output "aws_account_id" {
+  description = "AWS account ID"
+  value       = data.aws_caller_identity.current.account_id
+}
+
 output "cloudwatch_log_groups" {
   description = "CloudWatch log groups for XDR/SIEM ingestion"
   value       = { for k, v in aws_cloudwatch_log_group.services : k => v.name }

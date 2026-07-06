@@ -1,3 +1,5 @@
+# Copy to: https://github.com/<org>/shiftleft-automated/.github/workflows/scan-image.yaml
+
 name: Upwind Shift Left Scanning
 
 on:
@@ -28,10 +30,13 @@ on:
         description: Run ID of the originating job
         type: number
 
+env:
+  AWS_REGION: us-east-1
+
 permissions:
   actions: read
   contents: read
-  packages: read
+  id-token: write
   pull-requests: write
 
 jobs:
@@ -49,12 +54,16 @@ jobs:
             exit 1
           fi
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GHCR_READ_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ECR_PULL_ROLE_ARN }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: true
 
       - name: Pull the image
         run: docker pull ${{ inputs.image_name }}
