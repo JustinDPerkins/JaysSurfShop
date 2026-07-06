@@ -56,9 +56,9 @@ Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
 
 ### CI + Upwind SCA
 
-Push to `main` runs [.github/workflows/deploy-aws.yml](.github/workflows/deploy-aws.yml) — build, ECR push, and **Upwind ShiftLeft scan**. (Terraform deploy is commented out in the workflow for now.)
+Push to `main` runs [.github/workflows/deploy-aws.yml](.github/workflows/deploy-aws.yml) — **build locally + Upwind ShiftLeft scan** (no AWS required). ECR push and Terraform deploy are commented out for now.
 
-Required GitHub secrets: `UPWIND_CLIENT_ID`, `UPWIND_CLIENT_SECRET`, `AWS_DEPLOY_ROLE_ARN`
+Required GitHub secrets: `UPWIND_CLIENT_ID`, `UPWIND_CLIENT_SECRET`
 
 Full setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 

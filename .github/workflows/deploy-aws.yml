@@ -1,4 +1,4 @@
-name: Build, Push, and Scan
+name: Build and Scan
 
 on:
   push:
@@ -6,39 +6,23 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: us-east-1
-  PROJECT_NAME: jays-surf-shop
-  ENVIRONMENT: demo
+  IMAGE_PREFIX: jays-surf-shop-demo
 
 permissions:
-  id-token: write
   contents: read
-  actions: read
 
 jobs:
-  build-and-push:
+  build-and-scan:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          mask-password: true
-
-      - name: Build and push images
-        env:
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Build container images
         run: |
-          chmod +x infrastructure/scripts/build-push.sh
-          ./infrastructure/scripts/build-push.sh
+          TAG="${{ github.sha }}"
+          docker build -t "${{ env.IMAGE_PREFIX }}/frontend:${TAG}" ./frontend
+          docker build -t "${{ env.IMAGE_PREFIX }}/chat-rag:${TAG}" ./services/chat-rag
+          docker build -t "${{ env.IMAGE_PREFIX }}/board-generator:${TAG}" ./services/board-generator
 
       - name: Upwind ShiftLeft Scan — frontend
         uses: upwindsecurity/shiftleft-create-image-scan-event-action@main
@@ -46,7 +30,7 @@ jobs:
         with:
           upwind_client_id: ${{ secrets.UPWIND_CLIENT_ID }}
           upwind_client_secret: ${{ secrets.UPWIND_CLIENT_SECRET }}
-          docker_image: ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}/frontend:${{ github.sha }}
+          docker_image: ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
           pull_image: false
 
       - name: Upwind ShiftLeft Scan — chat-rag
@@ -55,7 +39,7 @@ jobs:
         with:
           upwind_client_id: ${{ secrets.UPWIND_CLIENT_ID }}
           upwind_client_secret: ${{ secrets.UPWIND_CLIENT_SECRET }}
-          docker_image: ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}/chat-rag:${{ github.sha }}
+          docker_image: ${{ env.IMAGE_PREFIX }}/chat-rag:${{ github.sha }}
           pull_image: false
 
       - name: Upwind ShiftLeft Scan — board-generator
@@ -64,13 +48,54 @@ jobs:
         with:
           upwind_client_id: ${{ secrets.UPWIND_CLIENT_ID }}
           upwind_client_secret: ${{ secrets.UPWIND_CLIENT_SECRET }}
-          docker_image: ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}/board-generator:${{ github.sha }}
+          docker_image: ${{ env.IMAGE_PREFIX }}/board-generator:${{ github.sha }}
           pull_image: false
 
+  # ECR push disabled until AWS OIDC is configured. Requires:
+  #   - GitHub secret AWS_DEPLOY_ROLE_ARN
+  #   - IAM role trust policy for repo JustinDPerkins/JaysSurfShop
+  #   - permissions: id-token: write
+  #
+  # push-to-ecr:
+  #   needs: build-and-scan
+  #   runs-on: ubuntu-24.04
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   env:
+  #     AWS_REGION: us-east-1
+  #     PROJECT_NAME: jays-surf-shop
+  #     ENVIRONMENT: demo
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Configure AWS credentials
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+  #         aws-region: ${{ env.AWS_REGION }}
+  #
+  #     - name: Login to Amazon ECR
+  #       uses: aws-actions/amazon-ecr-login@v2
+  #       with:
+  #         mask-password: true
+  #
+  #     - name: Build and push images
+  #       env:
+  #         IMAGE_TAG: ${{ github.sha }}
+  #       run: |
+  #         chmod +x infrastructure/scripts/build-push.sh
+  #         ./infrastructure/scripts/build-push.sh
+  #
   # AWS deployment disabled for now — uncomment when ready to deploy to ECS.
   # deploy:
-  #   needs: build-and-push
+  #   needs: push-to-ecr
   #   runs-on: ubuntu-24.04
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   env:
+  #     AWS_REGION: us-east-1
   #   steps:
   #     - uses: actions/checkout@v4
   #

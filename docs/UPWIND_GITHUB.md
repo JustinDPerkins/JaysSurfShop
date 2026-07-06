@@ -1,33 +1,35 @@
 # Upwind GitHub Integration
 
-Jay's Surf Shop CI pushes container images to ECR and scans them with Upwind ShiftLeft. Results appear in the **SCA** tab in the Upwind Console.
+Jay's Surf Shop CI builds container images on GitHub Actions and scans them with Upwind ShiftLeft. Results appear in the **SCA** tab in the Upwind Console.
 
 ## GitHub secrets (this repo)
 
 Add these under **Settings → Secrets and variables → Actions**:
 
-| Secret | Description |
-|--------|-------------|
-| `UPWIND_CLIENT_ID` | Upwind sensor credential ([Credentials docs](https://docs.upwind.io)) |
-| `UPWIND_CLIENT_SECRET` | Upwind sensor credential |
-| `AWS_DEPLOY_ROLE_ARN` | IAM role for build, push, and Terraform deploy |
-| `OPENAI_API_KEY` | OpenAI key for Terraform |
+| Secret | Required now | Description |
+|--------|--------------|-------------|
+| `UPWIND_CLIENT_ID` | Yes | Upwind sensor credential |
+| `UPWIND_CLIENT_SECRET` | Yes | Upwind sensor credential |
+| `AWS_DEPLOY_ROLE_ARN` | No (ECR push disabled) | IAM role for ECR push + deploy |
+| `OPENAI_API_KEY` | No (deploy disabled) | OpenAI key for Terraform |
 
 ## What runs today
 
 The [deploy-aws.yml](../.github/workflows/deploy-aws.yml) workflow:
 
-1. Builds and pushes `frontend`, `chat-rag`, and `board-generator` to ECR
+1. Builds `frontend`, `chat-rag`, and `board-generator` on the GitHub runner
 2. Runs Upwind ShiftLeft scan on each image (tag = git SHA)
 
-> Terraform deploy is **commented out** in the workflow for now. Uncomment the `deploy` job when ready to push to ECS.
+No AWS credentials needed — images are built and scanned locally on the runner.
+
+> ECR push and Terraform deploy are **commented out**. Uncomment when `AWS_DEPLOY_ROLE_ARN` and OIDC trust are configured.
 
 Images scanned:
 
 ```
-<account>.dkr.ecr.us-east-1.amazonaws.com/jays-surf-shop-demo/frontend:<sha>
-<account>.dkr.ecr.us-east-1.amazonaws.com/jays-surf-shop-demo/chat-rag:<sha>
-<account>.dkr.ecr.us-east-1.amazonaws.com/jays-surf-shop-demo/board-generator:<sha>
+jays-surf-shop-demo/frontend:<sha>
+jays-surf-shop-demo/chat-rag:<sha>
+jays-surf-shop-demo/board-generator:<sha>
 ```
 
 `chat-rag` includes **CVE-2023-50447** (pillow 10.0.1) — expect it in Upwind SCA findings.
