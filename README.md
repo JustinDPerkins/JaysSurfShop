@@ -54,6 +54,14 @@ Terraform deploys misconfigs by default: public S3 with synthetic PII, overprivi
 
 Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
 
+### CI + Upwind SCA
+
+Push to `main` runs [.github/workflows/deploy-aws.yml](.github/workflows/deploy-aws.yml) — build, ECR push, and **Upwind ShiftLeft scan**. (Terraform deploy is commented out in the workflow for now.)
+
+Required GitHub secrets: `UPWIND_CLIENT_ID`, `UPWIND_CLIENT_SECRET`, `AWS_DEPLOY_ROLE_ARN`
+
+Full setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
+
 ## Project structure
 
 ```

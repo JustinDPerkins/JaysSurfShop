@@ -1,0 +1,73 @@
+# Copy this file to your GitHub organization repo:
+#   https://github.com/<your-org>/shiftleft-automated
+# Save as: .github/workflows/scan-image.yaml  (note: scan-image, not scan-images)
+#
+# Required for Upwind GitHub Automated Scanning.
+# See docs/UPWIND_GITHUB.md in JaysSurfShop for full setup.
+
+name: Upwind Shift Left Scanning
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_name:
+        required: true
+        description: Image name to be scanned
+        type: string
+      repo:
+        description: Name of the original repository
+        type: string
+      run_id:
+        description: Run ID of the originating job
+        type: number
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        description: Image name to be scanned
+        type: string
+      repo:
+        required: true
+        description: Name of the original repository
+        type: string
+      run_id:
+        required: true
+        description: Run ID of the originating job
+        type: number
+
+env:
+  AWS_REGION: us-east-1
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  scan:
+    name: Remote Scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ECR_PULL_ROLE_ARN }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: true
+
+      - name: Pull the image
+        run: docker pull ${{ inputs.image_name }}
+
+      - name: Upwind Security ShiftLeft Scan
+        uses: upwindsecurity/shiftleft-create-image-scan-event-action@main
+        continue-on-error: true
+        with:
+          upwind_client_id: ${{ secrets.UPWIND_CLIENT_ID }}
+          upwind_client_secret: ${{ secrets.UPWIND_CLIENT_SECRET }}
+          docker_image: ${{ inputs.image_name }}
+          pull_image: false

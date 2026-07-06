@@ -62,3 +62,7 @@ Misconfigs deploy automatically: public S3 + synthetic PII, wildcard IAM on ECS 
 ```bash
 cd infrastructure/terraform && terraform destroy
 ```
+
+## Upwind CI scanning
+
+GitHub Actions scans all three ECR images with Upwind ShiftLeft on deploy. See **[UPWIND_GITHUB.md](./UPWIND_GITHUB.md)** for secrets and org-level automated scanning setup.
