@@ -18,12 +18,17 @@ Or push to `main`.
 
 ## GitHub secrets (this repo)
 
-**Settings → Secrets and variables → Actions**
+**Required** — the scan fails with `Client id is missing` if these are not set.
 
-| Secret | Description |
-|--------|-------------|
-| `UPWIND_CLIENT_ID` | Upwind sensor credential |
-| `UPWIND_CLIENT_SECRET` | Upwind sensor credential |
+1. In **Upwind Console** → **Organization** → **Credentials** → create a sensor credential (client ID + secret).
+2. In GitHub: **https://github.com/JustinDPerkins/JaysSurfShop/settings/secrets/actions** → **New repository secret**
+
+| Secret name | Value |
+|-------------|--------|
+| `UPWIND_CLIENT_ID` | Client ID from Upwind |
+| `UPWIND_CLIENT_SECRET` | Client secret from Upwind |
+
+Names must match exactly (case-sensitive).
 
 Results appear in **Upwind Console → SCA**.
 
