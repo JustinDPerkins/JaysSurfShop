@@ -54,11 +54,11 @@ Terraform deploys misconfigs by default: public S3 with synthetic PII, overprivi
 
 Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
 
-### CI + Upwind SCA
+### CI + Upwind SCA (automated)
 
-Run **[Upwind Scan](.github/workflows/upwind-scan.yml)** from Actions → **Upwind Scan** → **Run workflow**, or push to `main`.
+**Build and Push Images** pushes to GHCR. The **Upwind GitHub App** detects the push and runs scans from `shiftleft-automated`.
 
-Required GitHub secrets: `UPWIND_CLIENT_ID`, `UPWIND_CLIENT_SECRET`
+Setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 
 Full setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 
