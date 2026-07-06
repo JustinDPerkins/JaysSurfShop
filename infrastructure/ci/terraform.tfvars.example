@@ -1,0 +1,6 @@
+aws_region   = "us-east-1"
+project_name = "jays-surf-shop"
+environment  = "demo"
+
+github_deploy_repo = "JustinDPerkins/JaysSurfShop"
+github_scan_repo   = "JustinDPerkins/shiftleft-automated"

@@ -1,6 +1,6 @@
-# GitHub Actions OIDC — push images to ECR (JaysSurfShop) and pull for Upwind scans (shiftleft-automated)
+# GitHub Actions OIDC — separate from app deployment (infrastructure/terraform)
+# Requires ECR repos to exist first (created by app terraform).
 
-# GitHub's OIDC provider (one per AWS account)
 resource "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 
@@ -54,9 +54,9 @@ resource "aws_iam_role" "github_actions" {
   })
 
   tags = {
-    Name        = "${local.name_prefix}-github-${each.key}"
-    GitHubRepo  = each.value.name
-    Purpose     = each.key == "deploy" ? "ecr-push" : "ecr-pull-upwind-scan"
+    Name       = "${local.name_prefix}-github-${each.key}"
+    GitHubRepo = each.value.name
+    Purpose    = each.key == "deploy" ? "ecr-push" : "ecr-pull-upwind-scan"
   }
 }
 
@@ -67,10 +67,9 @@ resource "aws_iam_role_policy_attachment" "github_actions" {
   policy_arn = each.value.policy
 }
 
-# JaysSurfShop CI — build and push to ECR
 resource "aws_iam_policy" "github_ecr_push" {
   name        = "${local.name_prefix}-github-ecr-push"
-  description = "Allow GitHub Actions to push container images to project ECR repos"
+  description = "GitHub Actions: push to project ECR repos"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -82,7 +81,7 @@ resource "aws_iam_policy" "github_ecr_push" {
         Resource = "*"
       },
       {
-        Sid    = "ECRPushPull"
+        Sid    = "ECRPush"
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability",
@@ -95,16 +94,15 @@ resource "aws_iam_policy" "github_ecr_push" {
           "ecr:DescribeRepositories",
           "ecr:ListImages",
         ]
-        Resource = [for repo in aws_ecr_repository.services : repo.arn]
+        Resource = local.ecr_repository_arns
       },
     ]
   })
 }
 
-# shiftleft-automated — pull images for Upwind SCA scans
 resource "aws_iam_policy" "github_ecr_pull" {
   name        = "${local.name_prefix}-github-ecr-pull"
-  description = "Allow shiftleft-automated to pull images from project ECR repos"
+  description = "shiftleft-automated: pull from project ECR repos"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -123,7 +121,7 @@ resource "aws_iam_policy" "github_ecr_pull" {
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
         ]
-        Resource = [for repo in aws_ecr_repository.services : repo.arn]
+        Resource = local.ecr_repository_arns
       },
     ]
   })

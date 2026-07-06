@@ -5,6 +5,7 @@ infrastructure/terraform/*.tfstate.*
 infrastructure/terraform/.terraform.lock.hcl
 infrastructure/terraform/tfplan
 infrastructure/terraform/terraform.tfvars
+infrastructure/ci/terraform.tfvars
 
 # Dependencies
 node_modules/

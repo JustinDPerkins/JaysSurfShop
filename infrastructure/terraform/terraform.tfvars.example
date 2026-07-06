@@ -8,10 +8,7 @@ desired_count        = 1
 
 # See docs/WORKSHOP.md for the security demo runbook.
 
-# See docs/AWS_SETUP.md for the full AWS + CI setup.
+# See docs/WORKSHOP.md for the app deploy runbook.
+# GitHub OIDC / CI roles: infrastructure/ci/
 
 # openai_api_key = "sk-..."   # Pass via TF_VAR_openai_api_key env var instead
-
-# GitHub OIDC (defaults match JustinDPerkins repos)
-# github_deploy_repo = "JustinDPerkins/JaysSurfShop"
-# github_scan_repo   = "JustinDPerkins/shiftleft-automated"

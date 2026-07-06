@@ -63,15 +63,3 @@ variable "container_memory" {
   type        = number
   default     = 1024
 }
-
-variable "github_deploy_repo" {
-  description = "GitHub repo allowed to push images (org/repo)"
-  type        = string
-  default     = "JustinDPerkins/JaysSurfShop"
-}
-
-variable "github_scan_repo" {
-  description = "GitHub repo allowed to pull ECR images for Upwind scans (org/repo)"
-  type        = string
-  default     = "JustinDPerkins/shiftleft-automated"
-}

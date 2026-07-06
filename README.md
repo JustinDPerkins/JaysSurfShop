@@ -56,11 +56,12 @@ Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
 
 ### Upwind automated scanning (ECR)
 
-1. **AWS setup:** **[docs/AWS_SETUP.md](docs/AWS_SETUP.md)** — Terraform creates ECR + GitHub OIDC roles
-2. **JaysSurfShop** → **Build and Push Images** → ECR
-3. **Upwind app** → **shiftleft-automated** scans → SCA tab
+| Stack | Folder |
+|-------|--------|
+| App (ECS, ECR repos) | `infrastructure/terraform/` |
+| CI (GitHub OIDC roles) | `infrastructure/ci/` |
 
-Also: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
+Setup: **[infrastructure/ci/README.md](infrastructure/ci/README.md)** · Upwind flow: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 
 Full setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 
@@ -69,11 +70,12 @@ Full setup: **[docs/UPWIND_GITHUB.md](docs/UPWIND_GITHUB.md)**
 ```
 JaysSurfShop/
 ├── docs/WORKSHOP.md
-├── infrastructure/terraform/
-├── infrastructure/scripts/security-demo.sh
+├── infrastructure/
+│   ├── terraform/          # App deploy (ECS, VPC, ECR, misconfigs)
+│   ├── ci/                 # GitHub OIDC + ECR push/pull roles (separate)
+│   └── scripts/
 ├── frontend/
-├── services/chat-rag/
-├── services/board-generator/
+├── services/
 └── docker-compose.yml
 ```
 
