@@ -1,0 +1,11 @@
+aws_region           = "us-east-1"
+project_name         = "jays-surf-shop"
+environment          = "demo"
+owner                = "security-ops"
+cost_center          = "cloud-security"
+image_tag            = "latest"
+desired_count        = 1
+
+# See docs/WORKSHOP.md for the security demo runbook.
+
+# openai_api_key = "sk-..."   # Pass via TF_VAR_openai_api_key env var instead
