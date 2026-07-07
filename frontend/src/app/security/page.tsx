@@ -1,7 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  POC_CATEGORIES,
+  SECURITY_POCS,
+  isPocBlocked,
+  type PocCategory,
+  type SecurityPoc,
+} from "@/lib/securityPocs";
 
 interface PostureData {
   application: string;
@@ -46,92 +53,6 @@ interface PostureData {
   };
 }
 
-interface PoC {
-  id: string;
-  cve: string;
-  title: string;
-  method: "POST" | "GET";
-  apiPath: string;
-  description: string;
-  outcome: string;
-  requiresPillow?: boolean;
-  awsOnly?: boolean;
-  lambdaOnly?: boolean;
-}
-
-const POCS: PoC[] = [
-  {
-    id: "pillow-rce",
-    cve: "CVE-2023-50447",
-    title: "Pillow RCE",
-    method: "POST",
-    apiPath: "/api/security/demo/pillow",
-    requiresPillow: true,
-    description:
-      "Exploits a known bug in Pillow 10.0.1 (ImageMath.eval). An attacker who can trigger image processing runs arbitrary shell commands inside the chat-rag container.",
-    outcome:
-      "Runs `id` in the container and writes a marker file. Proves a scanner finding is actually exploitable at runtime — what eBPF/runtime protection tools would detect.",
-  },
-  {
-    id: "iam-role-abuse",
-    cve: "CWE-269",
-    title: "IAM role abuse",
-    method: "POST",
-    apiPath: "/api/security/demo/iam-abuse",
-    awsOnly: true,
-    description:
-      "Simulates an attacker who already has code execution in chat-rag using the attached ECS task IAM role. The role has wildcard s3:*, iam:*, and secretsmanager:* permissions.",
-    outcome:
-      "Calls ListBuckets, ListRoles, and ListSecrets via the task role. Each allowed call appears in CloudTrail — the Cloud XDR / identity abuse story after container compromise.",
-  },
-  {
-    id: "path-traversal",
-    cve: "CVE-2021-41773",
-    title: "Path traversal",
-    method: "GET",
-    apiPath: "/api/security/demo/traversal",
-    description:
-      "A legacy `/legacy/download` handler joins user input to a file path without checking for `../`. Same pattern as Apache path traversal CVEs — intended to serve public assets only.",
-    outcome:
-      "Reads `confidential/api-credentials.txt` outside the public directory and returns synthetic API keys. Shows credential leak from a simple missing path validation.",
-  },
-  {
-    id: "unauth-reindex",
-    cve: "CWE-306",
-    title: "Unauth reindex",
-    method: "POST",
-    apiPath: "/api/security/demo/reindex",
-    description:
-      "chat-rag exposes `POST /reindex` with no authentication. Locally, the service is bound to port 8001 — an admin action reachable from the host without going through the frontend.",
-    outcome:
-      "Wipes and rebuilds the RAG knowledge base (ChromaDB). Returns chunk count. Shows unauthorized admin access from network exposure + missing auth.",
-  },
-  {
-    id: "eicar",
-    cve: "EICAR",
-    title: "EICAR malware test",
-    method: "GET",
-    apiPath: "/api/security/demo/eicar",
-    lambdaOnly: true,
-    description:
-      "The order webhook Lambda deployment package embeds the standard EICAR antivirus test string. Invoking the endpoint returns it in the response body.",
-    outcome:
-      "Triggers malware/AV detections in scanners and runtime tools — separate from container CVE demos, shows serverless artifact risk.",
-  },
-  {
-    id: "yaml-deser",
-    cve: "CVE-2020-14343",
-    title: "PyYAML deserialization",
-    method: "POST",
-    apiPath: "/api/security/demo/yaml",
-    lambdaOnly: true,
-    description:
-      "Order webhook Lambda pins PyYAML 5.3.1 and exposes `POST /demo/yaml` using unsafe `yaml.load()` on attacker-controlled input.",
-    outcome:
-      "Deserializes a YAML gadget chain in Lambda. Proves serverless SCA finding is exploitable at runtime — complements chat-rag Pillow RCE on ECS.",
-  },
-];
-
 function StatusBadge({ active }: { active: boolean }) {
   return (
     <span
@@ -154,10 +75,63 @@ function Severity({ level }: { level: string }) {
   return <span className={`text-xs font-medium ${colors[level] || "text-ocean-600"}`}>{level}</span>;
 }
 
+function PocCard({
+  poc,
+  blocked,
+  running,
+  result,
+  onRun,
+}: {
+  poc: SecurityPoc;
+  blocked: boolean;
+  running: boolean;
+  result?: { ok: boolean; data: unknown };
+  onRun: () => void;
+}) {
+  return (
+    <div className="card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-ocean-900">{poc.title}</p>
+          <p className="text-xs font-mono text-ocean-500">{poc.cve}</p>
+          <p className="text-sm text-ocean-700 mt-2">{poc.description}</p>
+          <p className="text-xs text-ocean-500 mt-1">
+            <span className="font-medium text-ocean-600">Outcome: </span>
+            {poc.outcome}
+          </p>
+          <p className="text-xs text-ocean-500 mt-2">
+            <span className="font-medium text-ocean-600">Upwind: </span>
+            {poc.upwindPolicies.join(" · ")}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={blocked || running}
+          onClick={onRun}
+          className="btn-primary text-xs px-4 py-2 disabled:opacity-40 shrink-0"
+        >
+          {running ? "Running…" : "Run PoC"}
+        </button>
+      </div>
+      {blocked && (
+        <p className="text-xs text-ocean-400 mt-2">
+          Unavailable in this environment (requires AWS, Lambda, or vulnerable image).
+        </p>
+      )}
+      {result && (
+        <pre className="mt-3 text-xs font-mono bg-ocean-50 rounded-lg p-3 overflow-x-auto max-h-48 overflow-y-auto">
+          {JSON.stringify(result.data, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export default function SecurityPage() {
   const [posture, setPosture] = useState<PostureData | null>(null);
   const [results, setResults] = useState<Record<string, { ok: boolean; data: unknown }>>({});
   const [running, setRunning] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<PocCategory>("container-runtime");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/security/posture");
@@ -168,7 +142,16 @@ export default function SecurityPage() {
     load();
   }, [load]);
 
-  async function runPoC(poc: PoC) {
+  const pocsByCategory = useMemo(
+    () =>
+      POC_CATEGORIES.map((cat) => ({
+        ...cat,
+        pocs: SECURITY_POCS.filter((p) => p.category === cat.id),
+      })),
+    []
+  );
+
+  async function runPoC(poc: SecurityPoc) {
     setRunning(poc.id);
     try {
       const res = await fetch(poc.apiPath, { method: poc.method });
@@ -195,6 +178,7 @@ export default function SecurityPage() {
   const { findings } = posture;
   const activeCspm = findings.cspm_misconfigurations.filter((m) => m.active);
   const activeIam = findings.iam_misconfigurations.filter((m) => m.active && m.severity !== "Info");
+  const activeCategory = pocsByCategory.find((c) => c.id === activeTab)!;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -203,7 +187,7 @@ export default function SecurityPage() {
           Security Posture &amp; Monitoring Demo
         </h1>
         <p className="mt-2 text-ocean-600">
-          Reference deployment for CSPM, Cloud XDR, AI SPM, and container runtime workshops.
+          Reference deployment for CSPM, Cloud XDR, container runtime, malware, and AI SPM workshops.
         </p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
           {[
@@ -220,15 +204,15 @@ export default function SecurityPage() {
         </div>
       </div>
 
-      {/* CSPM */}
       <section className="card p-5 mb-6">
         <h2 className="font-display text-lg font-bold text-ocean-900 mb-1">CSPM Misconfigurations</h2>
-        <p className="text-xs text-ocean-500 mb-4">
-          {activeCspm.length} active in this environment
-        </p>
+        <p className="text-xs text-ocean-500 mb-4">{activeCspm.length} active in this environment</p>
         <div className="space-y-2">
           {findings.cspm_misconfigurations.map((m) => (
-            <div key={m.id} className="flex items-start justify-between gap-3 py-2 border-b border-ocean-50 last:border-0">
+            <div
+              key={m.id}
+              className="flex items-start justify-between gap-3 py-2 border-b border-ocean-50 last:border-0"
+            >
               <div>
                 <p className="text-sm text-ocean-900">{m.finding}</p>
                 <p className="text-xs text-ocean-500 mt-0.5">{m.trigger}</p>
@@ -242,7 +226,6 @@ export default function SecurityPage() {
         </div>
       </section>
 
-      {/* Attack surface */}
       <section className="card p-5 mb-6">
         <h2 className="font-display text-lg font-bold text-ocean-900 mb-4">Attack Surface Paths</h2>
         <div className="grid sm:grid-cols-2 gap-6">
@@ -258,7 +241,9 @@ export default function SecurityPage() {
             </ul>
           </div>
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ocean-500 mb-2">Private / internal</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-ocean-500 mb-2">
+              Private / internal
+            </h3>
             <ul className="space-y-1">
               {posture.attack_surface.private.map((ep) => (
                 <li key={ep.path} className="text-sm">
@@ -267,43 +252,29 @@ export default function SecurityPage() {
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-ocean-500 mt-3">
-              External: {posture.attack_surface.external.join(", ")}
-            </p>
-            <p className="text-xs text-ocean-500">
-              Secrets: {posture.attack_surface.secrets.join(", ")}
-            </p>
           </div>
         </div>
       </section>
 
-      {/* CVEs */}
       <section className="card p-5 mb-6">
         <h2 className="font-display text-lg font-bold text-ocean-900 mb-1">Active CVEs</h2>
-        <p className="text-xs text-ocean-500 mb-4">
-          Built into chat-rag image (pillow 10.0.1)
-        </p>
         {findings.active_cves.length === 0 ? (
-          <p className="text-sm text-ocean-600">None detected — rebuild chat-rag if pillow should be present</p>
+          <p className="text-sm text-ocean-600">None detected</p>
         ) : (
           findings.active_cves.map((c) => (
-            <div key={c.cve} className="flex items-center justify-between gap-3 py-2">
+            <div key={c.cve + c.service} className="flex items-center justify-between gap-3 py-2">
               <div>
                 <p className="text-sm font-mono text-ocean-900">{c.cve}</p>
                 <p className="text-xs text-ocean-500">
                   {c.package} · {c.service}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Severity level={c.severity} />
-                <StatusBadge active={c.active} />
-              </div>
+              <Severity level={c.severity} />
             </div>
           ))
         )}
       </section>
 
-      {/* IAM */}
       <section className="card p-5 mb-8">
         <h2 className="font-display text-lg font-bold text-ocean-900 mb-1">IAM Misconfigurations</h2>
         <p className="text-xs text-ocean-500 mb-4">
@@ -311,7 +282,10 @@ export default function SecurityPage() {
         </p>
         <div className="space-y-3">
           {findings.iam_misconfigurations.map((m, i) => (
-            <div key={`${m.role}-${i}`} className="flex items-start justify-between gap-3 py-2 border-b border-ocean-50 last:border-0">
+            <div
+              key={`${m.role}-${i}`}
+              className="flex items-start justify-between gap-3 py-2 border-b border-ocean-50 last:border-0"
+            >
               <div>
                 <p className="text-sm font-mono text-ocean-800">{m.role}</p>
                 <p className="text-sm text-ocean-900">{m.finding}</p>
@@ -326,50 +300,58 @@ export default function SecurityPage() {
         </div>
       </section>
 
-      {/* PoC section */}
       <section className="mb-8">
         <h2 className="font-display text-xl font-bold text-ocean-900 mb-1">PoC Attacks</h2>
         <p className="text-sm text-ocean-600 mb-4">
-          Run controlled exploits against active findings. Synthetic data only.
+          Organized by Upwind detection domain. Synthetic data only.
         </p>
 
-        <div className="space-y-3">
-          {POCS.map((poc) => {
-            const result = results[poc.id];
-            const blocked =
-              (poc.requiresPillow && findings.active_cves.every((c) => !c.cve.includes("50447"))) ||
-              (poc.awsOnly && !findings.aws_runtime) ||
-              (poc.lambdaOnly && !findings.lambda_enabled);
-
+        <div className="flex flex-wrap gap-2 mb-4 border-b border-ocean-100 pb-1">
+          {pocsByCategory.map((cat) => {
+            const count = cat.pocs.length;
+            const active = activeTab === cat.id;
             return (
-              <div key={poc.id} className="card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-ocean-900">{poc.title}</p>
-                    <p className="text-xs font-mono text-ocean-500">{poc.cve}</p>
-                    <p className="text-sm text-ocean-700 mt-2">{poc.description}</p>
-                    <p className="text-xs text-ocean-500 mt-1">
-                      <span className="font-medium text-ocean-600">Outcome: </span>
-                      {poc.outcome}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={blocked || running === poc.id}
-                    onClick={() => runPoC(poc)}
-                    className="btn-primary text-xs px-4 py-2 disabled:opacity-40"
-                  >
-                    {running === poc.id ? "Running…" : "Run PoC"}
-                  </button>
-                </div>
-                {result && (
-                  <pre className="mt-3 text-xs font-mono bg-ocean-50 rounded-lg p-3 overflow-x-auto max-h-48 overflow-y-auto">
-                    {JSON.stringify(result.data, null, 2)}
-                  </pre>
-                )}
-              </div>
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setActiveTab(cat.id)}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                  active
+                    ? "bg-ocean-900 text-white"
+                    : "text-ocean-600 hover:bg-ocean-50"
+                }`}
+              >
+                {cat.label}
+                <span className={`ml-1.5 text-xs ${active ? "text-ocean-200" : "text-ocean-400"}`}>
+                  ({count})
+                </span>
+              </button>
             );
           })}
+        </div>
+
+        <p className="text-xs text-ocean-500 mb-4">{activeCategory.blurb}</p>
+
+        <div className="mb-4 rounded-lg bg-ocean-50 px-4 py-3 text-xs text-ocean-700">
+          <span className="font-semibold text-ocean-900">Suggested kill chain: </span>
+          {activeTab === "container-runtime" &&
+            "Pillow RCE → Fargate metadata creds → (switch to Cloud XDR) IAM abuse + S3 exfil"}
+          {activeTab === "cloud-xdr" && "Run after container compromise — IAM API abuse then S3 object probe"}
+          {activeTab === "malware" && "EICAR file in container + Lambda EICAR/YAML for scanner vs runtime"}
+          {activeTab === "ai" && "Unauthenticated chat for AI SPM logs, then reindex for admin abuse"}
+        </div>
+
+        <div className="space-y-3">
+          {activeCategory.pocs.map((poc) => (
+            <PocCard
+              key={poc.id}
+              poc={poc}
+              blocked={isPocBlocked(poc, findings)}
+              running={running === poc.id}
+              result={results[poc.id]}
+              onRun={() => runPoC(poc)}
+            />
+          ))}
         </div>
       </section>
 
