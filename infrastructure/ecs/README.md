@@ -36,27 +36,16 @@ Shared resources (VPC, S3, Lambda, ECR, GitHub OIDC) live in `infrastructure/mod
 
 **SCA (GitHub Actions):** Add `UPWIND_CLIENT_ID` and `UPWIND_CLIENT_SECRET` to repo secrets, then run the **Upwind Manual Image Scan** workflow (`.github/workflows/upwind-scan.yml`). See [docs/WORKSHOP.md](../../docs/WORKSHOP.md#upwind-scanning).
 
-## Migrating from `infrastructure/terraform/`
-
-**Recommended:** destroy the legacy stack and redeploy (clean state, no `state mv` churn):
+After deploy, push images (GitHub Actions **Build and Push Images**, or `./infrastructure/scripts/build-push.sh` with Docker running), then restart ECS tasks:
 
 ```bash
-./infrastructure/scripts/redeploy-ecs.sh
+./infrastructure/scripts/force-ecs-redeploy.sh
 ```
 
-If Secrets Manager reports a secret "scheduled for deletion" after destroy, restore it before apply:
-
-```bash
-aws secretsmanager restore-secret --secret-id jays-surf-shop-demo/openai-api-key --region us-east-1
-cd infrastructure/ecs/terraform
-terraform import 'module.workshop.aws_secretsmanager_secret.openai_api_key' jays-surf-shop-demo/openai-api-key
-terraform apply
-```
-
-After deploy, push images (GitHub Actions **Build and Push Images**, or `./infrastructure/scripts/build-push.sh` with Docker running), then:
+Or one service at a time:
 
 ```bash
 aws ecs update-service --cluster jays-surf-shop-demo-cluster \
-  --service jays-surf-shop-demo-frontend jays-surf-shop-demo-chat-rag jays-surf-shop-demo-board-generator \
+  --service jays-surf-shop-demo-frontend \
   --force-new-deployment --region us-east-1
 ```

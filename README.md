@@ -70,7 +70,7 @@ JaysSurfShop/
 │   ├── ecs/terraform/         # ECS Fargate + ALB
 │   ├── eks/terraform/         # Amazon EKS
 │   ├── lambda/order-webhook/  # checkout Lambda (EICAR + PyYAML CVE)
-│   └── scripts/               # apply-ci.sh, deploy-ecs.sh, deploy-eks.sh
+│   └── scripts/               # apply-ci, deploy-ecs/eks, build-push, force-ecs-redeploy, security-demo
 ├── frontend/
 ├── services/
 └── docker-compose.yml
