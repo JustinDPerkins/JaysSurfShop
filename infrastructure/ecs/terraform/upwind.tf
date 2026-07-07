@@ -8,4 +8,8 @@ module "upwind_integration_aws_ecs_cluster" {
   ecs_cluster_name     = aws_ecs_cluster.main.name
   vpc_id               = module.workshop.vpc_id
   subnets              = module.workshop.private_subnet_ids
+
+  image_tracer = {
+    tag = "0.7.17"
+  }
 }

@@ -18,6 +18,11 @@ locals {
     },
   ] : []
 
+  upwind_tracer_env = local.upwind_enabled ? [
+    for k, v in module.upwind_integration_aws_ecs_cluster[0].tracer.env :
+    { name = k, value = v }
+  ] : []
+
   service_container_base = {
     for name, svc in local.services : name => {
       name      = name
@@ -111,8 +116,9 @@ locals {
 
   service_app_containers_instrumented = {
     for name, base in local.service_container_base : name => merge(base, local.service_health_checks[name], {
-      entryPoint = [module.upwind_integration_aws_ecs_cluster[0].tracer.entrypoint]
-      command    = local.service_commands[name]
+      environment = concat(base.environment, local.upwind_tracer_env)
+      entryPoint  = [module.upwind_integration_aws_ecs_cluster[0].tracer.entrypoint]
+      command     = local.service_commands[name]
       volumesFrom = [{
         sourceContainer = module.upwind_integration_aws_ecs_cluster[0].tracer.container.name
         readOnly        = true
@@ -133,10 +139,6 @@ locals {
     for name, svc in local.services : name => merge(
       module.upwind_integration_aws_ecs_cluster[0].tracer.container,
       {
-        environment = [
-          for k, v in module.upwind_integration_aws_ecs_cluster[0].tracer.env :
-          { name = k, value = v }
-        ]
         logConfiguration = {
           logDriver = "awslogs"
           options = {
@@ -149,6 +151,7 @@ locals {
     )
   }
 
+  # App container first, then upwind-tracer sidecar (per Upwind ECS sidecar docs).
   service_task_containers = {
     for name, svc in local.services : name => concat(
       [local.service_app_containers[name]],
