@@ -87,7 +87,7 @@ resource "aws_s3_bucket_policy" "demo_public_read" {
 resource "aws_s3_object" "demo_customer_export" {
   bucket       = aws_s3_bucket.demo_public_assets.id
   key          = "exports/customer-export.json"
-  source       = "${path.module}/../demo-data/customer-export.json"
+  source       = "${path.module}/../../demo-data/customer-export.json"
   content_type = "application/json"
-  etag         = filemd5("${path.module}/../demo-data/customer-export.json")
+  etag         = filemd5("${path.module}/../../demo-data/customer-export.json")
 }

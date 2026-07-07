@@ -4,7 +4,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-TF_DIR="${ROOT_DIR}/infrastructure/terraform"
+PLATFORM="${PLATFORM:-ecs}"
+TF_DIR="${ROOT_DIR}/infrastructure/${PLATFORM}/terraform"
 DEMO_CVE="CVE-2023-50447"
 DEMO_CVE_PACKAGE="pillow@10.0.1"
 AWS_REGION="${AWS_REGION:-us-east-1}"

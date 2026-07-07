@@ -45,14 +45,16 @@ Vulnerabilities are on by default: pillow CVE, exploit endpoints, path traversal
 
 ## Deploy to AWS
 
-One Terraform folder, two steps:
+Choose **ECS** or **EKS** — both share ECR, VPC, S3, Lambda, and GitHub OIDC via `infrastructure/modules/workshop/`.
 
 ```bash
-./infrastructure/scripts/apply-ci.sh          # ECR + GitHub OIDC roles
+./infrastructure/scripts/apply-ci.sh ecs   # or: eks
 # Add AWS_DEPLOY_ROLE_ARN to repo secrets, then run "Build and Push Images" in Actions
 export TF_VAR_openai_api_key="sk-..."
-./infrastructure/scripts/deploy.sh            # ECS cluster (later)
+./infrastructure/scripts/deploy-ecs.sh     # or: deploy-eks.sh
 ```
+
+See [infrastructure/ecs/README.md](infrastructure/ecs/README.md) and [infrastructure/eks/README.md](infrastructure/eks/README.md).
 
 The workflow [`.github/workflows/build-push.yml`](.github/workflows/build-push.yml) builds all three images and pushes to ECR on push to `main` (or manual dispatch). Local `./infrastructure/scripts/build-push.sh` is optional.
 
@@ -64,9 +66,11 @@ Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
 JaysSurfShop/
 ├── docs/WORKSHOP.md
 ├── infrastructure/
+│   ├── modules/workshop/      # shared VPC, S3, Lambda, ECR, GitHub OIDC
+│   ├── ecs/terraform/         # ECS Fargate + ALB
+│   ├── eks/terraform/         # Amazon EKS
 │   ├── lambda/order-webhook/  # checkout Lambda (EICAR + PyYAML CVE)
-│   ├── terraform/             # all AWS infra
-│   └── scripts/               # apply-ci.sh, deploy.sh, build-push.sh
+│   └── scripts/               # apply-ci.sh, deploy-ecs.sh, deploy-eks.sh
 ├── frontend/
 ├── services/
 └── docker-compose.yml

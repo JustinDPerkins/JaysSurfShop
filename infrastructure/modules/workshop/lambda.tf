@@ -3,12 +3,12 @@
 
 resource "null_resource" "order_webhook_package" {
   triggers = {
-    handler = filemd5("${path.module}/../lambda/order-webhook/handler.py")
-    reqs    = filemd5("${path.module}/../lambda/order-webhook/requirements.txt")
+    handler = filemd5("${path.module}/../../lambda/order-webhook/handler.py")
+    reqs    = filemd5("${path.module}/../../lambda/order-webhook/requirements.txt")
   }
 
   provisioner "local-exec" {
-    command     = "chmod +x ${path.module}/../lambda/order-webhook/build.sh && ${path.module}/../lambda/order-webhook/build.sh"
+    command     = "chmod +x ${path.module}/../../lambda/order-webhook/build.sh && ${path.module}/../../lambda/order-webhook/build.sh"
     interpreter = ["bash", "-c"]
   }
 }
@@ -16,8 +16,8 @@ resource "null_resource" "order_webhook_package" {
 data "archive_file" "order_webhook" {
   depends_on  = [null_resource.order_webhook_package]
   type        = "zip"
-  source_dir  = "${path.module}/../lambda/order-webhook/package"
-  output_path = "${path.module}/../lambda/order-webhook/build.zip"
+  source_dir  = "${path.module}/../../lambda/order-webhook/package"
+  output_path = "${path.module}/../../lambda/order-webhook/build.zip"
 }
 
 resource "aws_iam_role" "order_webhook_lambda" {
@@ -98,14 +98,10 @@ resource "aws_lambda_function" "order_webhook" {
 }
 
 # CSPM workshop finding: intentionally public, unauthenticated HTTP API
-# - Public execute-api.amazonaws.com endpoint (no private API / VPC endpoint)
-# - Every route uses authorization_type = NONE (no JWT, Lambda, or IAM authorizer)
-# - No API keys; CORS allows any origin
 resource "aws_apigatewayv2_api" "order_webhook" {
   name          = "${local.name_prefix}-order-api"
   protocol_type = "HTTP"
 
-  # Explicit: keep the default public invoke URL enabled for the workshop finding
   disable_execute_api_endpoint = false
 
   cors_configuration {

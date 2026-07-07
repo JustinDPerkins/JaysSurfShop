@@ -1,0 +1,8 @@
+aws_region   = "us-east-1"
+project_name = "jays-surf-shop"
+environment  = "demo"
+
+# openai_api_key = "sk-..."
+
+# Upwind EKS add-on (optional — subscribe in AWS Marketplace first)
+# upwind_client_id = "..."

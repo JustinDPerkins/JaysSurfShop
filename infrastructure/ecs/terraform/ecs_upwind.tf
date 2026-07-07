@@ -21,7 +21,7 @@ locals {
   service_container_base = {
     for name, svc in local.services : name => {
       name      = name
-      image     = "${aws_ecr_repository.services[name].repository_url}:${var.image_tag}"
+      image     = "${module.workshop.ecr_repository_urls[name]}:${var.image_tag}"
       essential = true
 
       portMappings = [{
@@ -42,11 +42,11 @@ locals {
         name == "frontend" ? [
           { name = "CHAT_SERVICE_URL", value = "http://chat-rag.${local.service_connect_namespace}:8001" },
           { name = "BOARD_SERVICE_URL", value = "http://board-generator.${local.service_connect_namespace}:8002" },
-          { name = "ORDER_WEBHOOK_URL", value = aws_apigatewayv2_api.order_webhook.api_endpoint },
+          { name = "ORDER_WEBHOOK_URL", value = module.workshop.order_webhook_url },
           { name = "NEXT_PUBLIC_APP_ENV", value = var.environment },
         ] : [],
         name == "board-generator" ? [
-          { name = "S3_BUCKET", value = aws_s3_bucket.board_images.bucket },
+          { name = "S3_BUCKET", value = module.workshop.board_images_bucket },
           { name = "AI_MODEL", value = "gpt-image-1" },
         ] : [],
         name == "chat-rag" ? [
@@ -58,7 +58,7 @@ locals {
       secrets = concat(
         [{
           name      = "OPENAI_API_KEY"
-          valueFrom = aws_secretsmanager_secret.openai_api_key.arn
+          valueFrom = module.workshop.openai_secret_arn
         }],
         local.upwind_app_secrets
       )
@@ -82,8 +82,6 @@ locals {
     }
   }
 
-  # Frontend: ALB health check only (ECS container health check was killing tasks).
-  # Backend services: curl-based container health check.
   service_health_checks = {
     for name, svc in local.services : name => name != "frontend" ? {
       healthCheck = {

@@ -6,6 +6,6 @@ module "upwind_integration_aws_ecs_cluster" {
   upwind_client_id     = var.upwind_client_id
   upwind_client_secret = var.upwind_client_secret
   ecs_cluster_name     = aws_ecs_cluster.main.name
-  vpc_id               = aws_vpc.main.id
-  subnets              = aws_subnet.private[*].id
+  vpc_id               = module.workshop.vpc_id
+  subnets              = module.workshop.private_subnet_ids
 }

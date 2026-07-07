@@ -5,6 +5,18 @@ infrastructure/terraform/*.tfstate.*
 infrastructure/terraform/.terraform.lock.hcl
 infrastructure/terraform/tfplan
 infrastructure/terraform/terraform.tfvars
+infrastructure/ecs/terraform/.terraform/
+infrastructure/ecs/terraform/*.tfstate
+infrastructure/ecs/terraform/*.tfstate.*
+infrastructure/ecs/terraform/.terraform.lock.hcl
+infrastructure/ecs/terraform/tfplan
+infrastructure/ecs/terraform/terraform.tfvars
+infrastructure/eks/terraform/.terraform/
+infrastructure/eks/terraform/*.tfstate
+infrastructure/eks/terraform/*.tfstate.*
+infrastructure/eks/terraform/.terraform.lock.hcl
+infrastructure/eks/terraform/tfplan
+infrastructure/eks/terraform/terraform.tfvars
 
 # Dependencies
 node_modules/

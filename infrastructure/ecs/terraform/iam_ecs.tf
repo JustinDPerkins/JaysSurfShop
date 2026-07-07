@@ -1,20 +1,3 @@
-resource "aws_secretsmanager_secret" "openai_api_key" {
-  name                    = "${local.name_prefix}/openai-api-key"
-  description             = "OpenAI API key for AI microservices"
-  recovery_window_in_days = 7
-
-  tags = {
-    Name       = "${local.name_prefix}-openai-key"
-    SecretType = "api-key"
-    AISystem   = "openai"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "openai_api_key" {
-  secret_id     = aws_secretsmanager_secret.openai_api_key.id
-  secret_string = var.openai_api_key
-}
-
 resource "aws_iam_role" "ecs_task_execution" {
   name = "${local.name_prefix}-ecs-execution"
 
@@ -47,7 +30,7 @@ resource "aws_iam_role_policy" "ecs_secrets" {
       Effect = "Allow"
       Action = ["secretsmanager:GetSecretValue"]
       Resource = concat(
-        [aws_secretsmanager_secret.openai_api_key.arn],
+        [module.workshop.openai_secret_arn],
         var.upwind_client_id != "" ? [module.upwind_integration_aws_ecs_cluster[0].sensor_secret_arn] : []
       )
     }]
@@ -71,7 +54,6 @@ resource "aws_iam_role" "ecs_task" {
   }
 }
 
-# Least-privilege task role: S3 access for board images only
 resource "aws_iam_role_policy" "ecs_task_s3" {
   name = "${local.name_prefix}-s3-board-images"
   role = aws_iam_role.ecs_task.id
@@ -85,7 +67,7 @@ resource "aws_iam_role_policy" "ecs_task_s3" {
         "s3:PutObject",
         "s3:DeleteObject"
       ]
-      Resource = "${aws_s3_bucket.board_images.arn}/*"
+      Resource = "arn:aws:s3:::${module.workshop.board_images_bucket}/*"
     }]
   })
 }

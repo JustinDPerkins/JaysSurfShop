@@ -14,7 +14,7 @@ resource "aws_ecs_cluster" "main" {
 resource "aws_service_discovery_private_dns_namespace" "main" {
   name        = local.service_connect_namespace
   description = "Private DNS for Jays Surf Shop microservices"
-  vpc         = aws_vpc.main.id
+  vpc         = module.workshop.vpc_id
 
   tags = {
     Name = local.service_connect_namespace
@@ -71,7 +71,7 @@ resource "aws_ecs_service" "services" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = aws_subnet.private[*].id
+    subnets          = module.workshop.private_subnet_ids
     security_groups  = [aws_security_group.ecs_tasks.id]
     assign_public_ip = false
   }

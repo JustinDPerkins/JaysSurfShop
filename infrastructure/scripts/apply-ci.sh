@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
 # Deploy ECR repos + GitHub OIDC roles only (step 1)
+# Works with either ECS or EKS — shared workshop module owns ECR + OIDC.
 set -euo pipefail
 
-cd "$(dirname "$0")/../terraform"
+PLATFORM="${1:-ecs}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TERRAFORM_DIR="${SCRIPT_DIR}/../${PLATFORM}/terraform"
+
+if [[ ! -d "$TERRAFORM_DIR" ]]; then
+  echo "ERROR: Unknown platform '${PLATFORM}'. Use: ecs or eks"
+  exit 1
+fi
+
+cd "$TERRAFORM_DIR"
 terraform init
 
 terraform apply \
-  -target=aws_ecr_repository.services \
-  -target=aws_iam_policy.github_ecr_push \
-  -target=aws_iam_policy.github_ecr_pull \
-  -target=aws_iam_role.github_actions \
-  -target=aws_iam_role_policy_attachment.github_actions
+  -target=module.workshop.aws_ecr_repository.services \
+  -target=module.workshop.aws_iam_policy.github_ecr_push \
+  -target=module.workshop.aws_iam_policy.github_ecr_pull \
+  -target=module.workshop.aws_iam_role.github_actions \
+  -target=module.workshop.aws_iam_role_policy_attachment.github_actions
 
 echo ""
 echo "Add to GitHub secrets:"

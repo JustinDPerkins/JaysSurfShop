@@ -35,19 +35,28 @@ chmod +x infrastructure/scripts/security-demo.sh
 
 ## AWS
 
+Pick an orchestrator:
+
+### ECS (default)
+
 ```bash
-# Step 1 — ECR + GitHub roles
-./infrastructure/scripts/apply-ci.sh
+./infrastructure/scripts/apply-ci.sh ecs
 # Add AWS_DEPLOY_ROLE_ARN to JaysSurfShop GitHub secrets
+# GitHub Actions → "Build and Push Images"
 
-# Step 2 — GitHub Actions → "Build and Push Images" (or push to main)
-
-# Step 3 — ECS cluster (when ready)
 export TF_VAR_openai_api_key="sk-..."
-./infrastructure/scripts/deploy.sh
+./infrastructure/scripts/deploy-ecs.sh
 ```
 
-Misconfigs deploy automatically: public S3 + synthetic PII, wildcard IAM on ECS task role, SSH open on ECS security group, public API Gateway order webhook Lambda (EICAR + PyYAML CVE).
+### EKS
+
+```bash
+./infrastructure/scripts/apply-ci.sh eks
+export TF_VAR_openai_api_key="sk-..."
+./infrastructure/scripts/deploy-eks.sh
+```
+
+Misconfigs deploy automatically: public S3 + synthetic PII, wildcard IAM (ECS task role or EKS IRSA), SSH open on compute security group, public API Gateway order webhook Lambda (EICAR + PyYAML CVE).
 
 ```bash
 ./infrastructure/scripts/security-demo.sh exploit   # curl public customer-export.json
@@ -57,7 +66,7 @@ After deploy, checkout in the shop cart posts to the order webhook Lambda via AP
 
 ## Upwind scanning
 
-After CI apply: add `AWS_ECR_PULL_ROLE_ARN` + Upwind credentials to **shiftleft-automated**. Copy `infrastructure/terraform/upwind-scan-image.yaml` into that repo's workflows. Push images → Upwind GitHub App triggers scan → SCA tab.
+After CI apply: add `AWS_ECR_PULL_ROLE_ARN` + Upwind credentials to **shiftleft-automated**. Copy `infrastructure/ecs/upwind-scan-image.yaml` into that repo's workflows. Push images → Upwind GitHub App triggers scan → SCA tab.
 
 ## Key endpoints
 
@@ -72,5 +81,9 @@ After CI apply: add `AWS_ECR_PULL_ROLE_ARN` + Upwind credentials to **shiftleft-
 ## Cleanup
 
 ```bash
-cd infrastructure/terraform && terraform destroy
+# ECS
+cd infrastructure/ecs/terraform && terraform destroy
+
+# EKS
+cd infrastructure/eks/terraform && terraform destroy
 ```

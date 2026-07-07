@@ -1,4 +1,3 @@
-# One OIDC provider per AWS account — reuse if it already exists
 data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 }
