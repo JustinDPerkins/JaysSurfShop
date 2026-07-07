@@ -103,20 +103,21 @@ jobs:
         if: inputs.scan_mode == 'build'
         run: docker build -t "${{ steps.image.outputs.ref }}" "./${{ steps.ctx.outputs.context }}"
 
+      - name: Tag image for local-only scan
+        id: scan-image
+        run: |
+          LOCAL="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-${{ matrix.service }}:${{ inputs.image_tag }}"
+          docker tag "${{ steps.image.outputs.ref }}" "$LOCAL"
+          echo "ref=${LOCAL}" >> "$GITHUB_OUTPUT"
+          echo "Local scan tag: ${LOCAL}"
+
       - name: Shift Left Image Scan
         uses: upwindsecurity/shiftleft-create-image-scan-event-action@main
         with:
           upwind_client_id: ${{ secrets.UPWIND_CLIENT_ID }}
           upwind_client_secret: ${{ secrets.UPWIND_CLIENT_SECRET }}
-          docker_image: ${{ steps.image.outputs.ref }}
+          docker_image: ${{ steps.scan-image.outputs.ref }}
           pull_image: false
+          use_sudo: false
           commit_sha: ${{ github.sha }}
-
-      - name: Shift Left Image Publish
-        if: inputs.scan_mode == 'ecr'
-        uses: upwindsecurity/shiftleft-create-image-publish-event-action@main
-        with:
-          upwind_client_id: ${{ secrets.UPWIND_CLIENT_ID }}
-          upwind_client_secret: ${{ secrets.UPWIND_CLIENT_SECRET }}
-          docker_image: ${{ steps.image.outputs.ref }}
-          pull_image: false
+          additional_registries: ${{ inputs.scan_mode == 'ecr' && format('{0}/{1}-{2}', steps.login-ecr.outputs.registry, env.PROJECT_NAME, env.ENVIRONMENT) || '' }}
