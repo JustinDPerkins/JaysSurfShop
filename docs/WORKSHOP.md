@@ -66,7 +66,26 @@ After deploy, checkout in the shop cart posts to the order webhook Lambda via AP
 
 ## Upwind scanning
 
-After CI apply: add `AWS_ECR_PULL_ROLE_ARN` + Upwind credentials to **shiftleft-automated**. Copy `infrastructure/ecs/upwind-scan-image.yaml` into that repo's workflows. Push images → Upwind GitHub App triggers scan → SCA tab.
+### Manual scan (this repo)
+
+Add GitHub Actions secrets to **JaysSurfShop**:
+
+| Secret | Source |
+|--------|--------|
+| `UPWIND_CLIENT_ID` | Upwind Console → Settings → Credentials |
+| `UPWIND_CLIENT_SECRET` | Upwind Console → Settings → Credentials |
+| `AWS_DEPLOY_ROLE_ARN` | `terraform output github_actions_deploy_role_arn` (already used for builds) |
+
+Then run **Actions → Upwind Manual Image Scan → Run workflow**:
+
+- **ECR mode** (default) — pull `latest` (or chosen tag) from ECR and scan. Use after **Build and Push Images**.
+- **Build mode** — build from Dockerfile on the runner and scan before push (shift-left).
+
+Results appear in Upwind → Shift Left / SCA.
+
+### Automated scan (optional, separate repo)
+
+For registry-triggered scans via the Upwind GitHub App: add `AWS_ECR_PULL_ROLE_ARN` + Upwind credentials to **shiftleft-automated**. Copy `infrastructure/ecs/upwind-scan-image.yaml` into that repo's workflows. Push images → Upwind GitHub App triggers scan → SCA tab.
 
 ## Key endpoints
 
