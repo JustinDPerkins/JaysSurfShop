@@ -27,4 +27,6 @@ terraform apply tfplan
 echo ""
 echo "==> Deployment complete!"
 terraform output application_url
+terraform output order_webhook_url
 echo "Security dashboard: $(terraform output -raw application_url)/security"
+echo "Checkout webhook: $(terraform output -raw order_checkout_url)"

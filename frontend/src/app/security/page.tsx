@@ -17,6 +17,8 @@ interface PostureData {
   findings: {
     exploit_lab_enabled: boolean;
     aws_runtime: boolean;
+    lambda_enabled: boolean;
+    eicar_present: boolean;
     is_local: boolean;
     cspm_misconfigurations: Array<{
       id: string;
@@ -54,6 +56,7 @@ interface PoC {
   outcome: string;
   requiresPillow?: boolean;
   awsOnly?: boolean;
+  lambdaOnly?: boolean;
 }
 
 const POCS: PoC[] = [
@@ -102,6 +105,30 @@ const POCS: PoC[] = [
       "chat-rag exposes `POST /reindex` with no authentication. Locally, the service is bound to port 8001 — an admin action reachable from the host without going through the frontend.",
     outcome:
       "Wipes and rebuilds the RAG knowledge base (ChromaDB). Returns chunk count. Shows unauthorized admin access from network exposure + missing auth.",
+  },
+  {
+    id: "eicar",
+    cve: "EICAR",
+    title: "EICAR malware test",
+    method: "GET",
+    apiPath: "/api/security/demo/eicar",
+    lambdaOnly: true,
+    description:
+      "The order webhook Lambda deployment package embeds the standard EICAR antivirus test string. Invoking the endpoint returns it in the response body.",
+    outcome:
+      "Triggers malware/AV detections in scanners and runtime tools — separate from container CVE demos, shows serverless artifact risk.",
+  },
+  {
+    id: "yaml-deser",
+    cve: "CVE-2020-14343",
+    title: "PyYAML deserialization",
+    method: "POST",
+    apiPath: "/api/security/demo/yaml",
+    lambdaOnly: true,
+    description:
+      "Order webhook Lambda pins PyYAML 5.3.1 and exposes `POST /demo/yaml` using unsafe `yaml.load()` on attacker-controlled input.",
+    outcome:
+      "Deserializes a YAML gadget chain in Lambda. Proves serverless SCA finding is exploitable at runtime — complements chat-rag Pillow RCE on ECS.",
   },
 ];
 
@@ -310,8 +337,9 @@ export default function SecurityPage() {
           {POCS.map((poc) => {
             const result = results[poc.id];
             const blocked =
-              (poc.requiresPillow && findings.active_cves.length === 0) ||
-              (poc.awsOnly && !findings.aws_runtime);
+              (poc.requiresPillow && findings.active_cves.every((c) => !c.cve.includes("50447"))) ||
+              (poc.awsOnly && !findings.aws_runtime) ||
+              (poc.lambdaOnly && !findings.lambda_enabled);
 
             return (
               <div key={poc.id} className="card p-4">

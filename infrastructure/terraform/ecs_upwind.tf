@@ -42,6 +42,7 @@ locals {
         name == "frontend" ? [
           { name = "CHAT_SERVICE_URL", value = "http://chat-rag.${local.service_connect_namespace}:8001" },
           { name = "BOARD_SERVICE_URL", value = "http://board-generator.${local.service_connect_namespace}:8002" },
+          { name = "ORDER_WEBHOOK_URL", value = aws_apigatewayv2_api.order_webhook.api_endpoint },
           { name = "NEXT_PUBLIC_APP_ENV", value = var.environment },
         ] : [],
         name == "board-generator" ? [

@@ -31,3 +31,28 @@ output "vpc_id" {
 output "private_subnet_ids" {
   value = aws_subnet.private[*].id
 }
+
+output "order_webhook_url" {
+  description = "Public API Gateway base URL for checkout + security demos"
+  value       = aws_apigatewayv2_api.order_webhook.api_endpoint
+}
+
+output "order_checkout_url" {
+  description = "Checkout webhook endpoint (cart integration)"
+  value       = "${aws_apigatewayv2_api.order_webhook.api_endpoint}/checkout"
+}
+
+output "order_api_misconfiguration" {
+  description = "CSPM workshop metadata for the public unauthenticated API Gateway"
+  value = {
+    endpoint               = aws_apigatewayv2_api.order_webhook.api_endpoint
+    protocol               = "HTTP"
+    execute_api_public     = !aws_apigatewayv2_api.order_webhook.disable_execute_api_endpoint
+    authorization_type     = "NONE"
+    api_key_required       = false
+    authorizer             = "none"
+    cors_allow_origins     = "*"
+    unauthenticated_routes = ["POST /checkout", "GET /status", "GET /demo/eicar", "POST /demo/yaml"]
+    direct_invoke_example  = "curl -s ${aws_apigatewayv2_api.order_webhook.api_endpoint}/demo/eicar"
+  }
+}

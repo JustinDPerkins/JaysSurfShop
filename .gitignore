@@ -39,3 +39,5 @@ npm-debug.log*
 # Generated
 services/chat-rag/data/chroma/
 services/board-generator/generated/
+infrastructure/lambda/order-webhook/package/
+infrastructure/lambda/order-webhook/build.zip

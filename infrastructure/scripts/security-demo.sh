@@ -58,12 +58,27 @@ phase_baseline() {
     warn "No AWS exfil URL yet — run terraform apply for CSPM S3 demo"
   fi
 
+  API_URL="$(tf_output order_webhook_url)"
+  if [[ -n "$API_URL" ]]; then
+    fail "Public unauthenticated API Gateway is live: ${API_URL}"
+    if curl -sf "${API_URL}/demo/eicar" | grep -q "EICAR-STANDARD-ANTIVIRUS-TEST-FILE"; then
+      ok "No auth required — EICAR endpoint reachable from internet"
+    else
+      warn "API Gateway reachable but EICAR demo response unexpected"
+    fi
+  else
+    warn "No API Gateway URL yet — run terraform apply for serverless demo"
+  fi
+
   echo ""
   echo "Built-in findings to validate in your tooling:"
   echo "  • Public S3 bucket with synthetic customer export (AWS)"
   echo "  • ECS task role with s3:*, iam:*, secretsmanager:* on * (AWS)"
   echo "  • SSH (22) open to 0.0.0.0/0 on ECS security group (AWS)"
+  echo "  • Public API Gateway HTTP API — no authorizer, CORS * (AWS)"
+  echo "  • Overprivileged Lambda execution role (AWS)"
   echo "  • CVE-2023-50447 in chat-rag image (local + AWS)"
+  echo "  • CVE-2020-14343 in order-webhook Lambda (AWS)"
   echo "  • chat-rag on host port 8001 + unauthenticated /reindex (local compose)"
 }
 
@@ -77,6 +92,8 @@ AWS (terraform apply):
   • Public S3 bucket with world-readable synthetic customer-export.json
   • Overprivileged ECS task IAM policy
   • SSH open on ECS security group
+  • Public API Gateway HTTP API (no authorizer, no API key, CORS *)
+  • Overprivileged Lambda execution role + EICAR / PyYAML CVE
   • chat-rag image includes pillow 10.0.1 (CVE-2023-50447)
 
 Local (docker compose up --build):
@@ -86,6 +103,7 @@ Local (docker compose up --build):
 
 Demo commands:
   ./infrastructure/scripts/security-demo.sh exploit       # S3 exfil (AWS)
+  ./infrastructure/scripts/security-demo.sh public-api    # unauthenticated API GW (AWS)
   ./infrastructure/scripts/security-demo.sh scan-cve      # container scan
   ./infrastructure/scripts/security-demo.sh exploit-live  # local PoCs
   ./infrastructure/scripts/security-demo.sh local-abuse   # unauth /reindex
@@ -282,6 +300,36 @@ phase_local_abuse() {
   fi
 }
 
+phase_public_api() {
+  header "Public unauthenticated API Gateway"
+  print_banner
+
+  API_URL="$(tf_output order_webhook_url)"
+  if [[ -z "$API_URL" ]]; then
+    fail "No API Gateway URL — run terraform apply first"
+    exit 1
+  fi
+
+  fail "Invoke URL (no credentials): ${API_URL}"
+  echo ""
+  echo "Calling GET /demo/eicar without Authorization header..."
+  if curl -sf "${API_URL}/demo/eicar" | tee /tmp/jss-eicar.json | grep -q "EICAR-STANDARD-ANTIVIRUS-TEST-FILE"; then
+    ok "EICAR returned — API is public and unauthenticated"
+    warn "CSPM should flag: API Gateway with authorization_type NONE"
+  else
+    fail "Unexpected response from ${API_URL}/demo/eicar"
+    exit 1
+  fi
+
+  echo ""
+  echo "Calling POST /demo/yaml without Authorization header..."
+  if curl -sf -X POST "${API_URL}/demo/yaml" -H "Content-Type: application/json" -d '{}' | grep -q "CVE-2020-14343"; then
+    ok "PyYAML exploit demo reachable without auth"
+  else
+    warn "YAML demo response unexpected"
+  fi
+}
+
 phase_full() {
   phase_baseline
   phase_scan_cve
@@ -295,6 +343,7 @@ usage() {
   echo "  baseline      Show active findings"
   echo "  scenario      Describe built-in workshop scenario"
   echo "  exploit       S3 exfiltration demo (AWS)"
+  echo "  public-api    Unauthenticated API Gateway demo (AWS)"
   echo "  scan-cve      Scan chat-rag for CVE-2023-50447"
   echo "  exploit-live  Run local PoCs (Pillow RCE, path traversal)"
   echo "  local-abuse   POST /reindex without auth"
@@ -307,6 +356,7 @@ case "${1:-}" in
   baseline)     phase_baseline ;;
   scenario|activate) phase_scenario ;;
   exploit)      phase_exploit ;;
+  public-api)   phase_public_api ;;
   scan-cve)     phase_scan_cve ;;
   exploit-live) phase_exploit_live ;;
   local-abuse)  phase_local_abuse ;;

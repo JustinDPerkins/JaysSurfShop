@@ -47,11 +47,13 @@ export TF_VAR_openai_api_key="sk-..."
 ./infrastructure/scripts/deploy.sh
 ```
 
-Misconfigs deploy automatically: public S3 + synthetic PII, wildcard IAM on ECS task role, SSH open on ECS security group.
+Misconfigs deploy automatically: public S3 + synthetic PII, wildcard IAM on ECS task role, SSH open on ECS security group, public API Gateway order webhook Lambda (EICAR + PyYAML CVE).
 
 ```bash
 ./infrastructure/scripts/security-demo.sh exploit   # curl public customer-export.json
 ```
+
+After deploy, checkout in the shop cart posts to the order webhook Lambda via API Gateway.
 
 ## Upwind scanning
 
@@ -63,6 +65,7 @@ After CI apply: add `AWS_ECR_PULL_ROLE_ARN` + Upwind credentials to **shiftleft-
 |----------|---------|
 | `GET /security` | Posture UI + PoC buttons |
 | `GET /api/security/posture` | Machine-readable findings |
+| `POST /api/checkout` | Cart checkout → order webhook Lambda |
 | `POST /api/chat` | AI inference audit logs |
 | `POST /api/board` | Image generation audit logs |
 

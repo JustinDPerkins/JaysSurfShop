@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import ProductIllustration from "@/components/ProductIllustration";
 import { CATEGORY_GRADIENTS, formatPrice } from "@/lib/products";
@@ -14,9 +15,50 @@ export default function CartDrawer() {
     updateQuantity,
     subtotal,
     itemCount,
+    clearCart,
   } = useCart();
 
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [orderResult, setOrderResult] = useState<{
+    orderId?: string;
+    message?: string;
+    error?: string;
+  } | null>(null);
+
   if (!isOpen) return null;
+
+  async function handleCheckout() {
+    setCheckingOut(true);
+    setOrderResult(null);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map(({ product, quantity }) => ({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            quantity,
+          })),
+          subtotal,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOrderResult({ error: data.detail || "Checkout failed" });
+        return;
+      }
+      setOrderResult({ orderId: data.orderId, message: data.message });
+      clearCart();
+    } catch (err) {
+      setOrderResult({
+        error: err instanceof Error ? err.message : "Checkout failed",
+      });
+    } finally {
+      setCheckingOut(false);
+    }
+  }
 
   return (
     <>
@@ -50,8 +92,18 @@ export default function CartDrawer() {
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-ocean-500">
               <span className="text-5xl mb-4">🏄</span>
-              <p className="font-medium">Your cart is empty</p>
-              <p className="text-sm mt-1">Add some gear and catch a wave!</p>
+              {orderResult?.orderId ? (
+                <>
+                  <p className="font-medium text-teal-700">Order placed!</p>
+                  <p className="text-sm mt-1 font-mono">{orderResult.orderId}</p>
+                  <p className="text-xs mt-2 text-ocean-500">{orderResult.message}</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium">Your cart is empty</p>
+                  <p className="text-sm mt-1">Add some gear and catch a wave!</p>
+                </>
+              )}
             </div>
           ) : (
             <ul className="space-y-4">
@@ -112,16 +164,19 @@ export default function CartDrawer() {
               <span>Subtotal</span>
               <span>{formatPrice(subtotal)}</span>
             </div>
+            {orderResult?.error && (
+              <p className="text-xs text-coral-600 text-center">{orderResult.error}</p>
+            )}
             <p className="text-xs text-ocean-500 text-center">
-              Demo cart only — checkout is not connected.
+              Checkout posts to the order webhook (API Gateway + Lambda on AWS).
             </p>
             <button
               type="button"
-              disabled
-              className="btn-primary w-full opacity-60 cursor-not-allowed"
-              title="Checkout not implemented"
+              disabled={checkingOut}
+              onClick={handleCheckout}
+              className="btn-primary w-full disabled:opacity-60"
             >
-              Checkout (Coming Soon)
+              {checkingOut ? "Placing order…" : "Checkout"}
             </button>
           </div>
         )}
