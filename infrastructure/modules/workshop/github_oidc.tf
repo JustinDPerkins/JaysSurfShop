@@ -33,7 +33,10 @@ resource "aws_iam_role" "github_actions" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:${each.value.name}:*"
+          "token.actions.githubusercontent.com:sub" = each.key == "scan" ? [
+            "repo:${local.github_repos.scan.name}:*",
+            "repo:${local.github_repos.deploy.name}:*",
+          ] : ["repo:${each.value.name}:*"]
         }
       }
     }]

@@ -1,7 +1,7 @@
 name: Upwind Manual Image Scan
 
 # Manual SCA scan via Upwind Shift Left actions.
-# Requires GitHub secrets: UPWIND_CLIENT_ID, UPWIND_CLIENT_SECRET, AWS_DEPLOY_ROLE_ARN
+# Requires GitHub secrets: UPWIND_CLIENT_ID, UPWIND_CLIENT_SECRET, AWS_ECR_PULL_ROLE_ARN
 
 on:
   workflow_dispatch:
@@ -70,11 +70,22 @@ jobs:
             board-generator)  echo "context=services/board-generator" ;;
           esac >> "$GITHUB_OUTPUT"
 
+      - name: Check AWS ECR pull role
+        if: inputs.scan_mode == 'ecr'
+        env:
+          AWS_ECR_PULL_ROLE_ARN: ${{ secrets.AWS_ECR_PULL_ROLE_ARN }}
+        run: |
+          if [ -z "$AWS_ECR_PULL_ROLE_ARN" ]; then
+            echo "::error::Add AWS_ECR_PULL_ROLE_ARN to this repo's Actions secrets."
+            echo "::error::Value: arn:aws:iam::000159318350:role/jays-surf-shop-demo-github-scan"
+            exit 1
+          fi
+
       - name: Configure AWS credentials
         if: inputs.scan_mode == 'ecr'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ECR_PULL_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR

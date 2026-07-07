@@ -25,6 +25,7 @@ terraform apply \
 echo ""
 echo "Add to GitHub secrets:"
 terraform output -raw github_actions_deploy_role_arn
-echo "  → JaysSurfShop: AWS_DEPLOY_ROLE_ARN"
+echo "  → JaysSurfShop: AWS_DEPLOY_ROLE_ARN (ECR push / build workflow)"
 terraform output -raw github_actions_ecr_pull_role_arn
-echo "  → shiftleft-automated: AWS_ECR_PULL_ROLE_ARN"
+echo "  → JaysSurfShop: AWS_ECR_PULL_ROLE_ARN (manual Upwind scan workflow)"
+echo "  → shiftleft-automated: AWS_ECR_PULL_ROLE_ARN (automated registry scans)"

@@ -70,11 +70,14 @@ After deploy, checkout in the shop cart posts to the order webhook Lambda via AP
 
 Add GitHub Actions secrets to **JaysSurfShop**:
 
-| Secret | Source |
-|--------|--------|
-| `UPWIND_CLIENT_ID` | Upwind Console → Settings → Credentials |
-| `UPWIND_CLIENT_SECRET` | Upwind Console → Settings → Credentials |
-| `AWS_DEPLOY_ROLE_ARN` | `terraform output github_actions_deploy_role_arn` (already used for builds) |
+| Secret | Role | ARN |
+|--------|------|-----|
+| `AWS_DEPLOY_ROLE_ARN` | ECR **push** (build workflow) | `arn:aws:iam::000159318350:role/jays-surf-shop-demo-github-deploy` |
+| `AWS_ECR_PULL_ROLE_ARN` | ECR **pull** (manual scan workflow) | `arn:aws:iam::000159318350:role/jays-surf-shop-demo-github-scan` |
+| `UPWIND_CLIENT_ID` | Upwind SCA | Upwind Console → Settings → Credentials |
+| `UPWIND_CLIENT_SECRET` | Upwind SCA | Upwind Console → Settings → Credentials |
+
+After updating Terraform (scan role trust includes this repo), run `terraform apply` in `infrastructure/ecs/terraform` if the scan workflow cannot assume the pull role yet.
 
 Then run **Actions → Upwind Manual Image Scan → Run workflow**:
 
