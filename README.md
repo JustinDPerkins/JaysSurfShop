@@ -8,6 +8,10 @@
   A cloud-native surf shop <strong>intentionally vulnerable</strong> for security workshops — CSPM, container runtime, AI SPM, and XDR demos. Also a real app: catalog, cart, RAG chatbot, and AI board designer.
 </p>
 
+<p align="center">
+  <a href="https://github.com/AstralJays/JaysSurfShop">github.com/AstralJays/JaysSurfShop</a>
+</p>
+
 > [!CAUTION]
 > **Do not deploy to production accounts.**
 
