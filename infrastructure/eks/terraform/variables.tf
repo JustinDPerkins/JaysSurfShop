@@ -25,7 +25,7 @@ variable "cost_center" {
 
 variable "github_deploy_repo" {
   type    = string
-  default = "JustinDPerkins/JaysSurfShop"
+  default = "AstralJays/JaysSurfShop"
 }
 
 variable "github_scan_repo" {

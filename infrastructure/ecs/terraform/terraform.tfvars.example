@@ -2,6 +2,8 @@ aws_region   = "us-east-1"
 project_name = "jays-surf-shop"
 environment  = "demo"
 
+# github_deploy_repo = "AstralJays/JaysSurfShop"
+
 # openai_api_key = "sk-..."
 
 # Upwind ECS sensor (optional — from Upwind Console > Settings > Credentials)
