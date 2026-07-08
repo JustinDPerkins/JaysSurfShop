@@ -1,8 +1,24 @@
-data "aws_iam_openid_connect_provider" "github" {
+data "external" "github_oidc_provider" {
+  program = ["bash", "${path.module}/scripts/github_oidc_lookup.sh"]
+}
+
+resource "aws_iam_openid_connect_provider" "github" {
+  count = data.external.github_oidc_provider.result.create == "true" ? 1 : 0
+
   url = "https://token.actions.githubusercontent.com"
+
+  client_id_list = [
+    "sts.amazonaws.com",
+  ]
+
+  thumbprint_list = [
+    "6938fd4d98bab03fa76887e67522eb9944caf965",
+  ]
 }
 
 locals {
+  github_oidc_provider_arn = data.external.github_oidc_provider.result.create == "true" ? aws_iam_openid_connect_provider.github[0].arn : data.external.github_oidc_provider.result.arn
+
   github_repos = {
     deploy = {
       name   = var.github_deploy_repo
@@ -26,7 +42,7 @@ resource "aws_iam_role" "github_actions" {
       Effect = "Allow"
       Action = "sts:AssumeRoleWithWebIdentity"
       Principal = {
-        Federated = data.aws_iam_openid_connect_provider.github.arn
+        Federated = local.github_oidc_provider_arn
       }
       Condition = {
         StringEquals = {
