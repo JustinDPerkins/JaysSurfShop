@@ -207,6 +207,24 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Curls 169.254.170.2 for ECS task metadata and temporary IAM credentials (Fargate IMDS analogue).",
     outcome: "Redacted creds + task ARN + IP lookup DNS/curl — run after Pillow, before IAM abuse.",
   },
+  {
+    id: "order-yaml-checkout",
+    category: "container-runtime",
+    cve: "CVE-2020-14343",
+    title: "Poisoned checkout fulfillment",
+    method: "POST",
+    apiPath: "/api/security/demo/order-yaml-checkout",
+    lambdaOnly: true,
+    upwindPolicies: [
+      "CVE-2020-14343 / unsafe deserialization",
+      "CloudTrail identity",
+      "CloudTrail S3 ListBuckets",
+    ],
+    description:
+      "Places a real order via POST /api/checkout with a malicious fulfillmentManifest — yaml.load RCE in Lambda, then id/shell, STS identity probe, and S3 enumeration.",
+    outcome:
+      "Full kill chain in checkout response on order-webhook Lambda; CloudTrail for identity and S3 APIs (no Upwind tracer on Lambda).",
+  },
   // AI
   {
     id: "ai-chat-unauth",
@@ -258,11 +276,20 @@ export const POC_STORIES: PocStory[] = [
     pocIds: ["curl-pipe-sh", "renamed-downloader", "cryptominer-sim", "package-manager"],
   },
   {
+    id: "serverless-checkout-chain",
+    category: "container-runtime",
+    title: "Story 3 — Poisoned checkout (order webhook)",
+    blurb:
+      "Real cart checkout path on order-webhook Lambda: poisoned fulfillmentManifest triggers PyYAML RCE, subprocess toolkit, STS identity probe, and S3 abuse.",
+    upwindFocus: "CloudTrail identity + S3 ListBuckets · serverless checkout kill chain (no Lambda tracer)",
+    pocIds: ["order-yaml-checkout"],
+  },
+  {
     id: "syscall-deep-dive",
     category: "container-runtime",
-    title: "Story 3 — Shell mechanics (optional)",
+    title: "Story 4 — Shell mechanics (optional)",
     blurb:
-      "Optional syscall deep-dive — ECS tracers usually show Process Events only, not standalone syscall Detections.",
+      "Optional syscall deep-dive on ECS chat-rag — tracers usually show Process Events only, not standalone syscall Detections.",
     upwindFocus: "Shell Process Redirect · Events on ECS tracer; use Story 2 cryptominer for Detections",
     pocIds: ["shell-pipe"],
   },

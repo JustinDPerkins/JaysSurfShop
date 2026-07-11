@@ -4,6 +4,7 @@
 resource "null_resource" "order_webhook_package" {
   triggers = {
     handler = filemd5("${path.module}/../../lambda/order-webhook/handler.py")
+    chain   = filemd5("${path.module}/../../lambda/order-webhook/workshop_chain.py")
     reqs    = filemd5("${path.module}/../../lambda/order-webhook/requirements.txt")
   }
 

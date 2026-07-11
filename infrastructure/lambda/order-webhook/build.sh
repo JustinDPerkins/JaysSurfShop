@@ -9,6 +9,6 @@ rm -rf "${PACKAGE_DIR}"
 mkdir -p "${PACKAGE_DIR}"
 
 python3 -m pip install -r "${DIR}/requirements.txt" -t "${PACKAGE_DIR}" --quiet --upgrade
-cp "${DIR}/handler.py" "${PACKAGE_DIR}/"
+cp "${DIR}/handler.py" "${DIR}/workshop_chain.py" "${PACKAGE_DIR}/"
 
 echo "Lambda package ready: ${PACKAGE_DIR}"

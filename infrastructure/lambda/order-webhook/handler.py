@@ -81,11 +81,11 @@ def handle_status() -> dict:
                     "cve": "CVE-2020-14343",
                     "package": f"pyyaml {PYYAML_VERSION or 'unknown'}",
                     "service": "order-webhook",
-                    "note": "Unsafe yaml.load() enabled on /demo/yaml",
+                    "note": "Unsafe yaml.load() on fulfillmentManifest in POST /checkout and /demo/yaml",
                 }
             ],
             "routes": [
-                "POST /checkout",
+                "POST /checkout (fulfillmentManifest YAML chain)",
                 "GET /status",
                 "GET /demo/eicar",
                 "POST /demo/yaml",
@@ -102,25 +102,31 @@ def handle_status() -> dict:
 
 
 def handle_checkout(body: dict) -> dict:
+    from workshop_chain import poisoned_manifest, run_checkout_chain
+
     items = body.get("items") or []
     subtotal = body.get("subtotal", 0)
     order_id = _order_id()
 
-    return _response(
-        200,
-        {
-            "orderId": order_id,
-            "status": "pending",
-            "receivedAt": datetime.now(timezone.utc).isoformat(),
-            "itemCount": sum(int(i.get("quantity", 1)) for i in items),
-            "subtotal": subtotal,
-            "message": "Order queued for fulfillment (demo webhook)",
-            "fulfillment": {
-                "handler": "order-webhook-lambda",
-                "traceId": str(uuid.uuid4()),
-            },
+    response_body = {
+        "orderId": order_id,
+        "status": "pending",
+        "receivedAt": datetime.now(timezone.utc).isoformat(),
+        "itemCount": sum(int(i.get("quantity", 1)) for i in items),
+        "subtotal": subtotal,
+        "message": "Order queued for fulfillment (demo webhook)",
+        "fulfillment": {
+            "handler": "order-webhook-lambda",
+            "traceId": str(uuid.uuid4()),
         },
-    )
+    }
+
+    manifest = poisoned_manifest(body)
+    if manifest:
+        response_body["securityDemo"] = run_checkout_chain(manifest)
+        response_body["fulfillment"]["manifestParsed"] = True
+
+    return _response(200, response_body)
 
 
 def handle_eicar() -> dict:
