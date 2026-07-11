@@ -34,6 +34,8 @@ Shared resources (VPC, S3, Lambda, ECR, GitHub OIDC) live in `infrastructure/mod
 
 **Runtime (ECS):** Set `upwind_client_id` and `upwind_client_secret` in `terraform.tfvars` to enable the Upwind ECS Fargate sensor module.
 
+**Runtime (Lambda):** Instrument `order-webhook` separately with `upwindctl lambda instrument` (see [Upwind Lambda docs](https://docs.upwind.io/getting-started/install-sensor/amazon-lambda/overview)).
+
 **SCA (GitHub Actions):** Add `UPWIND_CLIENT_ID` and `UPWIND_CLIENT_SECRET` to repo secrets, then run the **Upwind Manual Image Scan** workflow (`.github/workflows/upwind-scan.yml`). See [docs/WORKSHOP.md](../../docs/WORKSHOP.md#upwind-scanning).
 
 After deploy, push images (GitHub Actions **Build and Push Images**, or `./infrastructure/scripts/build-push.sh` with Docker running), then restart ECS tasks:
