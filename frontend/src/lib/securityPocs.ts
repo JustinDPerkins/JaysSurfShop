@@ -85,7 +85,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Out Of Baseline",
     ],
     description: "Exploits Pillow 10.0.1 ImageMath.eval for container-local code execution.",
-    outcome: "Runs `sh -c id > /tmp/jss-cve-2023-50447-id.txt` — your Upwind detection.",
+    outcome: "Runs `id -a` after RCE — tracer-friendly Process events on ECS/Fargate.",
   },
   {
     id: "shell-pipe",
@@ -94,9 +94,13 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Shell pipe redirect",
     method: "POST",
     apiPath: "/api/security/demo/runtime/shell-pipe",
-    upwindPolicies: ["Shell Process Redirect", "Operating system utilities processes"],
-    description: "Spawns `sh` with `id | tee` — pipe redirect from an app container.",
-    outcome: "Triggers syscall/process policies distinct from Pillow CVE chain.",
+    upwindPolicies: [
+      "Interactive shell process stream redirected to a pipe",
+      "Shell Process Redirect",
+      "Operating system utilities processes",
+    ],
+    description: "Runs real `id` + `tee` binaries, then `sh -i` with stdio on pipes.",
+    outcome: "Discrete Process events on ECS tracers plus syscall pattern for sh -i.",
   },
   {
     id: "cryptominer-sim",
@@ -107,8 +111,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
     apiPath: "/api/security/demo/runtime/cryptominer-sim",
     upwindPolicies: ["Crypto mining threats", "CryptoMiners Services DNS"],
     description:
-      "Harmless simulation: process renamed to `xmrig` + DNS lookups for known mining pools.",
-    outcome: "No real mining — signals for cryptominer process and pool DNS policies.",
+      "Harmless simulation: cp/chmod/run `/tmp/xmrig` + DNS lookups for known mining pools.",
+    outcome: "cp/chmod/xmrig exec chain + pool DNS lookups — discrete Process events on tracers.",
   },
   {
     id: "package-manager",
@@ -118,8 +122,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
     method: "POST",
     apiPath: "/api/security/demo/runtime/package-manager",
     upwindPolicies: ["Package Managers Processes", "Drift"],
-    description: "Runs `pip list` inside the running chat-rag container.",
-    outcome: "Runtime drift / supply-chain policy signal from live workload.",
+    description: "Runs `pip install pytz` inside the running chat-rag container.",
+    outcome: "Package manager install process — Package Managers Processes built-in on tracers.",
   },
   {
     id: "path-traversal",
@@ -128,9 +132,15 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Path traversal",
     method: "GET",
     apiPath: "/api/security/demo/traversal",
-    upwindPolicies: ["Sensitive file access", "Sensitive System File Access"],
-    description: "Legacy download handler reads `../confidential/api-credentials.txt`.",
-    outcome: "Returns synthetic API keys — file access outside intended directory.",
+    upwindPolicies: [
+      "Sensitive file access",
+      "Sensitive System File Access",
+      "System Information File Access",
+      "Operating system utilities processes",
+    ],
+    description:
+      "Legacy download reads `../confidential/api-credentials.txt`, then cats `/etc/passwd` and `/proc/cpuinfo`.",
+    outcome: "Traversal plus discrete cat on system paths for file/process built-ins.",
   },
   {
     id: "metadata-creds",
@@ -140,10 +150,14 @@ export const SECURITY_POCS: SecurityPoc[] = [
     method: "POST",
     apiPath: "/api/security/demo/runtime/metadata-creds",
     awsOnly: true,
-    upwindPolicies: ["AWS credentials access", "Metadata DNS rebind"],
+    upwindPolicies: [
+      "AWS credentials access",
+      "Metadata DNS rebind",
+      "Lookup IP Services DNS",
+    ],
     description:
       "Curls 169.254.170.2 for ECS task metadata and temporary IAM credentials (Fargate IMDS analogue).",
-    outcome: "Redacted creds + task ARN — run after Pillow, before IAM abuse in Cloud XDR tab.",
+    outcome: "Redacted creds + task ARN + IP lookup DNS/curl — run after Pillow, before IAM abuse.",
   },
   // Malware
   {
@@ -153,9 +167,10 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "EICAR file write (container)",
     method: "POST",
     apiPath: "/api/security/demo/runtime/eicar-file",
-    upwindPolicies: ["Malware protection"],
-    description: "Writes the EICAR test string to `/tmp/eicar.com` inside chat-rag.",
-    outcome: "Container malware protection policy signal (distinct from Lambda EICAR).",
+    upwindPolicies: ["Malware protection", "Direct File system access"],
+    description:
+      "Writes EICAR via tee + direct write to `/tmp/eicar*.com`, then cats each file.",
+    outcome: "Multi-path EICAR write/read — Malware protection plus File/Process on tracers.",
   },
   {
     id: "eicar",
