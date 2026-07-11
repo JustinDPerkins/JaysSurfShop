@@ -70,10 +70,10 @@ After deploy, checkout in the shop cart posts to the order webhook Lambda via AP
 
 Add GitHub Actions secrets to **JaysSurfShop**:
 
-| Secret | Role | ARN |
-|--------|------|-----|
-| `AWS_DEPLOY_ROLE_ARN` | ECR **push** (build workflow) | `arn:aws:iam::000159318350:role/jays-surf-shop-demo-github-deploy` |
-| `AWS_ECR_PULL_ROLE_ARN` | ECR **pull** (manual scan workflow) | `arn:aws:iam::000159318350:role/jays-surf-shop-demo-github-scan` |
+| Secret | Role | How to get ARN |
+|--------|------|----------------|
+| `AWS_DEPLOY_ROLE_ARN` | ECR **push** (build workflow) | `terraform output -raw github_actions_deploy_role_arn` from `infrastructure/ecs/terraform` |
+| `AWS_ECR_PULL_ROLE_ARN` | ECR **pull** (manual scan workflow) | `terraform output -raw github_actions_ecr_pull_role_arn` from `infrastructure/ecs/terraform` |
 | `UPWIND_CLIENT_ID` | Upwind SCA | Upwind Console → Settings → Credentials |
 | `UPWIND_CLIENT_SECRET` | Upwind SCA | Upwind Console → Settings → Credentials |
 

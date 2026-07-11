@@ -77,7 +77,7 @@ jobs:
         run: |
           if [ -z "$AWS_ECR_PULL_ROLE_ARN" ]; then
             echo "::error::Add AWS_ECR_PULL_ROLE_ARN to this repo's Actions secrets."
-            echo "::error::Value: arn:aws:iam::000159318350:role/jays-surf-shop-demo-github-scan"
+            echo "::error::Run: terraform output -raw github_actions_ecr_pull_role_arn (in infrastructure/ecs/terraform)"
             exit 1
           fi
 
