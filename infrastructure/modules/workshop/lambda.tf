@@ -86,6 +86,13 @@ resource "aws_lambda_function" "order_webhook" {
     }
   }
 
+  # Upwind is attached out-of-band via `upwindctl lambda instrument` (layer + UPWIND_*
+  # env / Secrets Manager). Without ignore_changes, any terraform apply that updates
+  # source_code_hash resets env to ENVIRONMENT-only and clears Layers — dropping tracer.
+  lifecycle {
+    ignore_changes = [layers, environment]
+  }
+
   depends_on = [
     aws_cloudwatch_log_group.order_webhook,
     aws_iam_role_policy_attachment.order_webhook_basic,

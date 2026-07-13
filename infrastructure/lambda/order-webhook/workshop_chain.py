@@ -178,6 +178,7 @@ def _cryptominer_sim() -> dict[str, Any]:
 
     sleep_src = shutil.which("sleep") or "/bin/sleep"
     steps = [
+        _run_proc(["sh", "-c", "--", "exec -a xmrig sleep 3"]),
         _run_proc(["cp", sleep_src, str(MINER_BINARY)]),
         _run_proc(["chmod", "755", str(MINER_BINARY)]),
         _run_proc([str(MINER_BINARY), "2"]),
@@ -186,7 +187,7 @@ def _cryptominer_sim() -> dict[str, Any]:
         "miner_path": str(MINER_BINARY),
         "process_steps": steps,
         "dns_probes": dns_results,
-        "warning": "Synthetic only — sleep binary renamed to xmrig; no real mining",
+        "warning": "Synthetic only — exec -a xmrig + sleep renamed; no real mining",
         "upwind": ["Crypto mining threats (CloudWatch if instrumented)", "CryptoMiners Services DNS"],
     }
 
@@ -234,6 +235,8 @@ def run_checkout_chain(manifest: str) -> dict[str, Any]:
         }
     )
 
+    id_file = Path("/tmp/jss-yaml-chain-id.txt")
+    id_redirect = _run_proc(["sh", "-c", "--", f"id > {id_file}"])
     id_step = _run_proc(["id", "-a"])
     marker_text = f"yaml-chain:{yaml_result.get('result')}\n{id_step.get('stdout', '')}\n"
     WORKSHOP_MARKER.write_text(marker_text, encoding="utf-8")
@@ -243,21 +246,28 @@ def run_checkout_chain(manifest: str) -> dict[str, Any]:
             "mitre": ["T1059.004"],
             "tactic": "Execution",
             "action": "post_exploit_identity_probe",
-            "process": id_step,
+            "processes": {"sh_c_id_redirect": id_redirect, "discrete_id": id_step},
             "marker_file": str(WORKSHOP_MARKER),
+            "id_file": str(id_file),
             "upwind": ["CloudWatch Logs process output", "Custom API + Process if tracer added"],
         }
     )
 
-    shell_pipe = _run_proc(["sh", "-c", f"id 2>&1 | tee -a {WORKSHOP_MARKER}"])
+    shell_pipe = _run_proc(["sh", "-c", "--", f"id 2>&1 | tee -a {WORKSHOP_MARKER}"])
+    tee_pipe = _run_proc(["sh", "-c", "--", f"id | tee {WORKSHOP_MARKER}.tee"])
+    pip_list = _run_proc(["python3", "-m", "pip", "list", "--format=columns"])
     chain.append(
         {
             "step": 3,
             "mitre": ["T1059.004"],
             "tactic": "Execution",
             "action": "shell_pipe_redirect",
-            "process": shell_pipe,
-            "upwind": ["Shell spawn in Lambda", "CloudWatch"],
+            "processes": {
+                "shell_pipe": shell_pipe,
+                "tee_via_shell": tee_pipe,
+                "pip_list": pip_list,
+            },
+            "upwind": ["Shell spawn in Lambda", "CloudWatch", "Package manager enumeration"],
         }
     )
 
