@@ -116,7 +116,13 @@ locals {
 
   service_app_containers_instrumented = {
     for name, base in local.service_container_base : name => merge(base, local.service_health_checks[name], {
-      environment = concat(base.environment, local.upwind_tracer_env)
+      environment = concat(
+        base.environment,
+        local.upwind_tracer_env,
+        [
+          { name = "UPWIND_TRACER_EXTENDED_SYSCALLS", value = "true" },
+        ],
+      )
       entryPoint  = [module.upwind_integration_aws_ecs_cluster[0].tracer.entrypoint]
       command     = local.service_commands[name]
       volumesFrom = [{
