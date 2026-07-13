@@ -211,19 +211,22 @@ export const SECURITY_POCS: SecurityPoc[] = [
     id: "order-yaml-checkout",
     category: "container-runtime",
     cve: "CVE-2020-14343",
-    title: "Poisoned checkout fulfillment",
+    title: "Serverless tracer kill chain (checkout)",
     method: "POST",
     apiPath: "/api/security/demo/order-yaml-checkout",
     lambdaOnly: true,
     upwindPolicies: [
+      "API custom rules — poisoned checkout",
       "CVE-2020-14343 / unsafe deserialization",
+      "Shell Process Redirect",
+      "Crypto mining threats",
       "CloudTrail identity",
       "CloudTrail S3 ListBuckets",
     ],
     description:
-      "Places a real order via POST /api/checkout with a malicious fulfillmentManifest — yaml.load RCE in Lambda, then id/shell, STS identity probe, and S3 enumeration.",
+      "One poisoned POST /checkout runs the full MITRE chain on order-webhook Lambda: T1190 API entry → T1203 PyYAML RCE → T1059 shell/id → T1027 renamed curl → T1005 sensitive cat → T1552 STS creds → T1619 S3 list → T1496 miner sim → T1565 EICAR file.",
     outcome:
-      "Full kill chain in checkout response on order-webhook Lambda; CloudTrail for identity and S3 APIs (no Upwind tracer on Lambda).",
+      "10-step securityDemo.chain in response. Lambda has no tracer — use API rules + CloudTrail for Detections; Process steps appear in CloudWatch.",
   },
   // AI
   {
@@ -278,10 +281,11 @@ export const POC_STORIES: PocStory[] = [
   {
     id: "serverless-checkout-chain",
     category: "container-runtime",
-    title: "Story 3 — Poisoned checkout (order webhook)",
+    title: "Story 3 — Serverless MITRE kill chain (Lambda)",
     blurb:
-      "Real cart checkout path on order-webhook Lambda: poisoned fulfillmentManifest triggers PyYAML RCE, subprocess toolkit, STS identity probe, and S3 abuse.",
-    upwindFocus: "CloudTrail identity + S3 ListBuckets · serverless checkout kill chain (no Lambda tracer)",
+      "Single checkout invocation on order-webhook Lambda: T1190 public API → T1203 PyYAML → post-exploit toolkit (shell, renamed downloader, sensitive cat) → STS/S3 cloud abuse → miner + EICAR impact.",
+    upwindFocus:
+      "API custom rules + CloudTrail (hybrid lane — no Lambda tracer) · optional upwindctl lambda instrument for Process parity",
     pocIds: ["order-yaml-checkout"],
   },
   {
