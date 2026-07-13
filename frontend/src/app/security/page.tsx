@@ -126,7 +126,7 @@ function PocCard({
       </div>
       {blocked && (
         <p className="text-xs text-ocean-400 mt-2">
-          Unavailable in this environment (requires AWS, Lambda, or vulnerable image).
+          Unavailable in this environment (requires cloud runtime, serverless webhook, or vulnerable image).
         </p>
       )}
       {result && (
@@ -217,7 +217,7 @@ export default function SecurityPage() {
   const [posture, setPosture] = useState<PostureData | null>(null);
   const [results, setResults] = useState<Record<string, { ok: boolean; data: unknown }>>({});
   const [running, setRunning] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<PocCategory>("container-runtime");
+  const [activeTab, setActiveTab] = useState<PocCategory>("container");
 
   const pocById = useMemo(
     () => new Map(SECURITY_POCS.map((poc) => [poc.id, poc])),
@@ -288,7 +288,7 @@ export default function SecurityPage() {
           Security Posture &amp; Monitoring Demo
         </h1>
         <p className="mt-2 text-ocean-600">
-          Reference deployment for CSPM, Cloud XDR, container runtime, and AI SPM workshops.
+          Reference deployment for Container, Serverless, Cloud XDR, and AI SPM workshop flows.
         </p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
           {[
