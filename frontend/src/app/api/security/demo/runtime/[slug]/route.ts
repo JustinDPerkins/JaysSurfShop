@@ -13,6 +13,7 @@ const PROXY_ROUTES: Record<string, string> = {
   "sensitive-file-cat": "/demo/exploit/sensitive-file-cat",
   "eicar-file": "/demo/exploit/eicar-file",
   "s3-exfil": "/demo/exploit/s3-exfil",
+  "langchain-ai": "/demo/exploit/langchain-ai",
 };
 
 export async function POST(
