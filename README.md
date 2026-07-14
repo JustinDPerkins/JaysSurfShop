@@ -5,7 +5,9 @@
 </p>
 
 <p align="center">
-  A cloud-native surf shop <strong>intentionally vulnerable</strong> for security workshops — CSPM, container runtime, AI SPM, and XDR demos. Also a real app: catalog, cart, RAG chatbot, and AI board designer.
+  Open-source <strong>POC / demo</strong> app for security engineers — fork or clone it, stand it up locally or in AWS, wire in{" "}
+  <strong>your</strong> CSPM / runtime / XDR / SCA tooling, then run the built-in attack chains from <code>/security</code>.
+  Also a real shop UI: catalog, cart, RAG chatbot, and AI board designer.
 </p>
 
 <p align="center">
@@ -43,9 +45,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) · security dashboard at [/security](http://localhost:3000/security)
+Open [http://localhost:3000](http://localhost:3000) · exploit lab at [/security](http://localhost:3000/security)
 
-Vulnerabilities are on by default: pillow CVE, exploit endpoints, path traversal, chat-rag on port 8001. On AWS: public API Gateway order webhook with EICAR + PyYAML CVE.
+Vulnerabilities are on by default (Pillow CVE, exploit endpoints, path traversal, chat-rag on 8001). Point your tooling at the stack, then run attacks from the lab. On AWS: public API Gateway order webhook with EICAR + PyYAML CVE.
 
 ## Deploy to AWS
 
@@ -62,7 +64,7 @@ See [infrastructure/ecs/README.md](infrastructure/ecs/README.md) and [infrastruc
 
 The workflow [`.github/workflows/build-push.yml`](.github/workflows/build-push.yml) builds all three images and pushes to ECR on push to `main` (or manual dispatch). Local `./infrastructure/scripts/build-push.sh` is optional.
 
-Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)**
+Workshop runbook: **[docs/WORKSHOP.md](docs/WORKSHOP.md)** (optional — local compose + the `/security` lab are enough to start).
 
 ## Project structure
 
