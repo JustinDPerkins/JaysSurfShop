@@ -23,7 +23,7 @@ LOCAL_ORDERS: dict[str, dict[str, str]] = {
         "email": "sam.rivera@example.com",
         "board_sku": "Classic Longboard",
         "payment_status": "PAID",
-        "order_status": "processing",
+        "order_status": "ready_to_ship",
         "shipping_address": "88 Pacific Coast Hwy, Laguna Beach, CA 92651",
     },
     "JSS-10903": {
@@ -240,6 +240,7 @@ def search_orders(
     """
     status = (status or "all").strip().lower()
     needle = (board_contains or "").strip().lower()
+    awaiting = frozenset({"processing", "ready_to_ship"})
     rows = _all_orders()
     matches: list[dict[str, str]] = []
 
@@ -247,8 +248,12 @@ def search_orders(
         if row.get("payment_status") != "PAID":
             continue
         row_status = str(row.get("order_status", "")).lower()
-        if status != "all" and row_status != status:
-            continue
+        if status != "all":
+            if status in awaiting:
+                if row_status not in awaiting:
+                    continue
+            elif row_status != status:
+                continue
         if needle and needle not in str(row.get("board_sku", "")).lower():
             continue
         matches.append(row)

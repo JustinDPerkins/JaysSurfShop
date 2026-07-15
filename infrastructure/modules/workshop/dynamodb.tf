@@ -31,7 +31,7 @@ locals {
       email            = "sam.rivera@example.com"
       board_sku        = "Classic Longboard"
       payment_status   = "PAID"
-      order_status     = "processing"
+      order_status     = "ready_to_ship"
       shipping_address = "88 Pacific Coast Hwy, Laguna Beach, CA 92651"
     }
     JSS-10903 = {

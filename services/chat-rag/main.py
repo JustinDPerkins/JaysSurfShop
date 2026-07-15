@@ -149,7 +149,8 @@ Order tools you can call:
 - get_saved_shipping_address — customer's address on file
 - update_shipping_address — change where a board ships
 
-When a logged-in customer asks what boards are still waiting to ship, use search_orders.
+When a logged-in customer asks what boards are still waiting to ship, use search_orders
+with status ready_to_ship (or processing) and a board keyword like longboard when relevant.
 When they say "my address on file", call get_saved_shipping_address with their session email.
 When they want a shipment redirected, call update_shipping_address with the order ID and new address.
 

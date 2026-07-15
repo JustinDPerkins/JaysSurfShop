@@ -112,7 +112,7 @@ def create_owasp_router(
         result = _chat(prompt)
         reply = result["reply"]
         exploited = "OVERRIDE_OK" in reply or "ignore" in reply.lower() or len(reply) > 0
-        audit_event("owasp_llm01_prompt_injection", {"exploited": exploited})
+        audit_event("owasp_llm01_prompt_injection", exploited=exploited)
         return {
             "exploited": True,
             "owasp": "LLM01:2025",
@@ -149,11 +149,9 @@ def create_owasp_router(
         leaked_in_reply = WORKSHOP_VIP_EMAIL in reply or WORKSHOP_API_KEY in reply
         audit_event(
             "owasp_llm02_sensitive_disclosure",
-            {
-                "retrieved_pii": retrieved_pii,
-                "retrieved_secret": retrieved_secret,
-                "leaked_in_reply": leaked_in_reply,
-            },
+            retrieved_pii=retrieved_pii,
+            retrieved_secret=retrieved_secret,
+            leaked_in_reply=leaked_in_reply,
         )
         return {
             "exploited": retrieved_pii or retrieved_secret or leaked_in_reply,
@@ -190,7 +188,7 @@ def create_owasp_router(
 
         docs = _retrieve("Are boards free? FREEBOARD promo", n=3)
         poison_retrieved = any("FREEBOARD" in d or "FREE today" in d for d in docs)
-        audit_event("owasp_llm04_data_poisoning", {"poison_retrieved": poison_retrieved})
+        audit_event("owasp_llm04_data_poisoning", poison_retrieved=poison_retrieved)
         return {
             "exploited": poison_retrieved,
             "owasp": "LLM04:2025",
@@ -227,7 +225,7 @@ def create_owasp_router(
 
         payload = reply if ("<script>" in reply or "onerror=" in reply) else unsafe_html
         XSS_MARKER.write_text(payload, encoding="utf-8")
-        audit_event("owasp_llm05_improper_output", {"bytes": len(payload)})
+        audit_event("owasp_llm05_improper_output", bytes=len(payload))
         return {
             "exploited": True,
             "owasp": "LLM05:2025",
@@ -262,11 +260,9 @@ def create_owasp_router(
         )
         audit_event(
             "owasp_llm07_system_prompt_leak",
-            {
-                "leaked_pin": leaked_pin,
-                "leaked_code": leaked_code,
-                "prompt_contains_secrets": prompt_contains_secrets,
-            },
+            leaked_pin=leaked_pin,
+            leaked_code=leaked_code,
+            prompt_contains_secrets=prompt_contains_secrets,
         )
         return {
             "exploited": leaked_pin or leaked_code or leaked_marker or prompt_contains_secrets,
@@ -300,7 +296,8 @@ def create_owasp_router(
         poison_hit = any("FREEBOARD" in d for d in poison_docs)
         audit_event(
             "owasp_llm08_vector_embedding",
-            {"hit_sensitive": hit_sensitive, "poison_hit": poison_hit},
+            hit_sensitive=hit_sensitive,
+            poison_hit=poison_hit,
         )
         return {
             "exploited": hit_sensitive or poison_hit,
@@ -469,12 +466,10 @@ def create_owasp_router(
         UNBOUNDED_MARKER.write_text(summary, encoding="utf-8")
         audit_event(
             "owasp_llm10_unbounded_consumption",
-            {
-                "rounds": rounds,
-                "prompt_tokens": total_prompt,
-                "completion_tokens": total_completion,
-                "elapsed_ms": elapsed_ms,
-            },
+            rounds=rounds,
+            prompt_tokens=total_prompt,
+            completion_tokens=total_completion,
+            elapsed_ms=elapsed_ms,
         )
         return {
             "exploited": True,
