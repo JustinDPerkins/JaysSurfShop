@@ -350,6 +350,10 @@ usage() {
   echo "  local-abuse   POST /reindex without auth"
   echo "  full          baseline + scan-cve + exploit-live"
   echo ""
+  echo "Story smoke tests (post-deploy):"
+  echo "  ../scripts/smoke-stories.sh [APP_URL]"
+  echo "  ../scripts/smoke-stories.sh --story ai-support-hijack"
+  echo ""
   echo "Legacy alias: activate → scenario"
 }
 
