@@ -52,36 +52,41 @@ ok()   { echo -e "${GREEN}PASS${NC} $1"; pass=$((pass + 1)); }
 bad()  { echo -e "${RED}FAIL${NC} $1"; fail=$((fail + 1)); }
 warn() { echo -e "${YELLOW}SKIP${NC} $1"; skip=$((skip + 1)); }
 
-# poc_id -> "METHOD|path|aws_only(0|1)"
-declare -A POC_MAP=(
-  [path-traversal]="GET|/api/security/demo/traversal|0"
-  [pillow-rce]="POST|/api/security/demo/pillow|0"
-  [shell-pipe]="POST|/api/security/demo/runtime/shell-pipe|0"
-  [cve-probe-story]="POST|/api/security/demo/runtime/cve-probe-story|0"
-  [cryptominer-sim]="POST|/api/security/demo/runtime/cryptominer-sim|0"
-  [curl-pipe-sh]="POST|/api/security/demo/runtime/curl-pipe-sh|0"
-  [renamed-downloader]="POST|/api/security/demo/runtime/renamed-downloader|0"
-  [package-manager]="POST|/api/security/demo/runtime/package-manager|0"
-  [sensitive-file-cat]="POST|/api/security/demo/runtime/sensitive-file-cat|0"
-  [metadata-creds]="POST|/api/security/demo/runtime/metadata-creds|1"
-  [order-yaml-checkout]="POST|/api/security/demo/order-yaml-checkout|0"
-  [iam-role-abuse]="POST|/api/security/demo/iam-abuse|1"
-  [s3-exfil]="POST|/api/security/demo/runtime/s3-exfil|1"
-  [ai-order-hijack]="POST|/api/security/demo/runtime/ai-order-hijack|0"
-  [ai-chat-unauth]="POST|/api/security/demo/runtime/ai-prompt-injection|0"
-  [unauth-reindex]="POST|/api/security/demo/reindex|0"
-  [ai-sensitive-disclosure]="POST|/api/security/demo/runtime/ai-sensitive-disclosure|0"
-  [langchain-ai]="POST|/api/security/demo/runtime/langchain-ai|0"
-  [react2shell]="POST|/api/security/demo/react2shell|0"
-)
+poc_spec() {
+  case "$1" in
+    path-traversal)         echo "GET|/api/security/demo/traversal|0" ;;
+    pillow-rce)             echo "POST|/api/security/demo/pillow|0" ;;
+    shell-pipe)             echo "POST|/api/security/demo/runtime/shell-pipe|0" ;;
+    cve-probe-story)        echo "POST|/api/security/demo/runtime/cve-probe-story|0" ;;
+    cryptominer-sim)        echo "POST|/api/security/demo/runtime/cryptominer-sim|0" ;;
+    curl-pipe-sh)           echo "POST|/api/security/demo/runtime/curl-pipe-sh|0" ;;
+    renamed-downloader)     echo "POST|/api/security/demo/runtime/renamed-downloader|0" ;;
+    package-manager)        echo "POST|/api/security/demo/runtime/package-manager|0" ;;
+    sensitive-file-cat)     echo "POST|/api/security/demo/runtime/sensitive-file-cat|0" ;;
+    metadata-creds)         echo "POST|/api/security/demo/runtime/metadata-creds|1" ;;
+    order-yaml-checkout)    echo "POST|/api/security/demo/order-yaml-checkout|0" ;;
+    iam-role-abuse)         echo "POST|/api/security/demo/iam-abuse|1" ;;
+    s3-exfil)               echo "POST|/api/security/demo/runtime/s3-exfil|1" ;;
+    ai-order-hijack)        echo "POST|/api/security/demo/runtime/ai-order-hijack|0" ;;
+    ai-chat-unauth)         echo "POST|/api/security/demo/runtime/ai-prompt-injection|0" ;;
+    unauth-reindex)         echo "POST|/api/security/demo/reindex|0" ;;
+    ai-sensitive-disclosure) echo "POST|/api/security/demo/runtime/ai-sensitive-disclosure|0" ;;
+    langchain-ai)           echo "POST|/api/security/demo/runtime/langchain-ai|0" ;;
+    react2shell)            echo "POST|/api/security/demo/react2shell|0" ;;
+    *)                      echo "" ;;
+  esac
+}
 
-declare -A STORY_POCS=(
-  [ai-support-hijack]="path-traversal ai-order-hijack metadata-creds iam-role-abuse"
-  [story-1-cve-probing]="path-traversal pillow-rce shell-pipe cve-probe-story metadata-creds iam-role-abuse"
-  [story-2-frontend-rce]="react2shell order-yaml-checkout"
-  [identity-to-data]="metadata-creds iam-role-abuse s3-exfil"
-  [ai-data-plane]="ai-chat-unauth unauth-reindex ai-sensitive-disclosure langchain-ai"
-)
+story_pocs() {
+  case "$1" in
+    ai-support-hijack)   echo "path-traversal ai-order-hijack metadata-creds iam-role-abuse" ;;
+    story-1-cve-probing) echo "path-traversal pillow-rce shell-pipe cve-probe-story metadata-creds iam-role-abuse" ;;
+    story-2-frontend-rce) echo "react2shell order-yaml-checkout" ;;
+    identity-to-data)    echo "metadata-creds iam-role-abuse s3-exfil" ;;
+    ai-data-plane)       echo "ai-chat-unauth unauth-reindex ai-sensitive-disclosure langchain-ai" ;;
+    *)                   echo "" ;;
+  esac
+}
 
 is_aws_deployed() {
   [[ "$APP_URL" != *"localhost"* && "$APP_URL" != *"127.0.0.1"* ]]
@@ -91,9 +96,15 @@ assert_exploited() {
   local poc_id="$1"
   local body_file="$2"
   local http_code="$3"
+  local aws_only="$4"
 
   if [[ "$http_code" == "503" ]]; then
-    warn "$poc_id — HTTP 503 (expected off AWS for some PoCs)"
+    if [[ "$aws_only" == "1" ]] && ! is_aws_deployed; then
+      warn "$poc_id — HTTP 503 (AWS-only PoC off AWS)"
+    else
+      bad "$poc_id — HTTP 503"
+      [[ -s "$body_file" ]] && head -c 300 "$body_file" && echo ""
+    fi
     return 0
   fi
   if [[ "$http_code" != "200" ]]; then
@@ -122,19 +133,21 @@ assert_exploited() {
 
 run_poc() {
   local poc_id="$1"
-  local spec="${POC_MAP[$poc_id]:-}"
+  local spec
+  spec="$(poc_spec "$poc_id")"
   if [[ -z "$spec" ]]; then
     warn "$poc_id — no smoke mapping"
     return 0
   fi
 
-  IFS='|' read -r method path aws_only <<< "$spec"
+  local method api_path aws_only
+  IFS='|' read -r method api_path aws_only <<< "$spec"
   if [[ "$aws_only" == "1" ]] && ! is_aws_deployed; then
     warn "$poc_id — AWS-only PoC (local URL)"
     return 0
   fi
 
-  local url="${APP_URL}${path}"
+  local url="${APP_URL}${api_path}"
   local body_file="/tmp/jss-smoke-${poc_id}.json"
   local http_code
 
@@ -144,14 +157,13 @@ run_poc() {
     http_code=$(curl -sS -o "$body_file" -w "%{http_code}" "$url" || echo "000")
   fi
 
-  assert_exploited "$poc_id" "$body_file" "$http_code"
+  assert_exploited "$poc_id" "$body_file" "$http_code" "$aws_only"
 }
 
 echo -e "${BLUE}Jay's Surf Shop — story smoke tests${NC}"
 echo "Target: $APP_URL"
 echo ""
 
-# Posture sanity check
 posture_code=$(curl -sS -o /tmp/jss-smoke-posture.json -w "%{http_code}" "${APP_URL}/api/security/posture" || echo "000")
 if [[ "$posture_code" == "200" ]]; then
   ok "posture API"
@@ -169,7 +181,7 @@ fi
 for story in "${stories[@]}"; do
   echo ""
   echo -e "${BLUE}Story: ${story}${NC}"
-  pocs="${STORY_POCS[$story]:-}"
+  pocs="$(story_pocs "$story")"
   if [[ -z "$pocs" ]]; then
     bad "unknown story id: $story"
     continue
