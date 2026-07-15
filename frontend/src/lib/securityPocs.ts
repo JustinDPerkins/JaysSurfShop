@@ -109,7 +109,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "CVE-2025-55182",
     title: "Exploit React2Shell on the frontend",
     method: "POST",
-    apiPath: "/api/security/demo/react2shell",
+    apiPath: "/",
+    shopTrafficOnly: true,
     shopTraffic: [
       {
         method: "GET",
@@ -123,10 +124,12 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Shell Process Redirect",
       "Crypto mining threats",
       "Sensitive file access",
+      "RSC Flight / Next-Action exploit traffic",
     ],
     description:
-      "Browser hits /admin with middleware bypass (real auth-bypass traffic), then runs post-RCE tooling in the frontend process.",
-    outcome: "HTTP /admin bypass + process activity from the frontend container.",
+      "Browser POSTs a real CVE-2025-55182 RSC Flight multipart payload (Next-Action) to / — unauthenticated RCE in the Next.js process, then post-exploit toolkit.",
+    outcome:
+      "Real Flight deserialization RCE; id/tee/cat/xmrig argv0 processes from the frontend container (not a demo harness).",
   },
   {
     id: "pillow-rce",
@@ -626,9 +629,9 @@ export const POC_STORIES: PocStory[] = [
     targetResource: "frontend + order-webhook",
     title: "Frontend RCE → serverless checkout",
     blurb:
-      "Exploits React2Shell on the storefront, then sends a poisoned order to the serverless checkout webhook.",
+      "Fires a real CVE-2025-55182 RSC Flight exploit against the storefront, then sends a poisoned order to the serverless checkout webhook.",
     underTheHood:
-      "Frontend Node post-RCE toolkit, then PyYAML deserialization kill chain on order-webhook Lambda.",
+      "Unauthenticated Next-Action Flight deserialization RCE in frontend Node, then PyYAML deserialization kill chain on order-webhook Lambda.",
     lookFor: "Process on frontend · unsafe YAML on Lambda · follow-on crypto / identity noise",
     stepGapSeconds: 8,
     pocIds: ["react2shell", "order-yaml-checkout"],
