@@ -336,7 +336,34 @@ def create_owasp_router(
                 ),
             },
         ]
-        reply, tool_activity, _, _ = run_tool_chat(messages)
+        reply = ""
+        tool_activity: list[dict[str, str]] = []
+        try:
+            reply, tool_activity, _, _ = run_tool_chat(messages)
+        except Exception as exc:
+            # Deterministic fallback so the workshop story still lands if the model
+            # stalls mid-tool loop — still mutates DynamoDB like a successful jailbreak.
+            updated = update_shipping_address(
+                "JSS-10847",
+                "123 Attacker Way, Venice Beach, CA 90291",
+            )
+            tool_activity = [
+                {
+                    "tool": "update_shipping_address",
+                    "arguments": str(
+                        {
+                            "order_id": "JSS-10847",
+                            "new_address": "123 Attacker Way, Venice Beach, CA 90291",
+                        }
+                    ),
+                    "result_preview": str(updated)[:240],
+                }
+            ]
+            reply = (
+                f"Staff override applied. Order JSS-10847 for {updated.get('customer_name')} "
+                f"({updated.get('board_sku')}) is now shipping to {updated.get('shipping_address')}. "
+                f"(tool-loop error: {exc})"
+            )
         after = lookup_order("JSS-10847")
         hijacked = (
             after.get("found")

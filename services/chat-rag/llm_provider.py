@@ -202,11 +202,82 @@ def _bedrock_chat(
     )
 
 
+def run_bedrock_tool_loop(
+    messages: list[dict[str, str]],
+    tools: list[dict[str, Any]],
+    *,
+    execute_tool_fn,
+    temperature: float = 0.35,
+    max_tokens: int = 600,
+    max_rounds: int = 4,
+) -> ChatResult:
+    """Accumulate Bedrock Converse turns until the model stops requesting tools."""
+    tool_activity: list[dict[str, str]] = []
+    input_tokens = 0
+    output_tokens = 0
+    system, bedrock_messages = _split_system(messages)
+    tool_config = {"tools": _to_bedrock_tools(tools)}
+    text = ""
+
+    for _ in range(max_rounds):
+        kwargs: dict[str, Any] = {
+            "modelId": chat_model(),
+            "messages": bedrock_messages,
+            "inferenceConfig": {"temperature": temperature, "maxTokens": max_tokens},
+            "toolConfig": tool_config,
+        }
+        if system:
+            kwargs["system"] = [{"text": system}]
+
+        response = _bedrock_client().converse(**kwargs)
+        output = response.get("output", {}).get("message", {})
+        usage = response.get("usage", {})
+        input_tokens += usage.get("inputTokens") or 0
+        output_tokens += usage.get("outputTokens") or 0
+        tool_calls = _parse_bedrock_tool_calls(output)
+        text = _extract_bedrock_text(output)
+        bedrock_messages.append(output)
+
+        if not tool_calls:
+            break
+
+        result_blocks: list[dict[str, Any]] = []
+        for call in tool_calls:
+            payload = execute_tool_fn(call["name"], call["arguments"])
+            tool_activity.append(
+                {
+                    "tool": call["name"],
+                    "arguments": str(call["arguments"]),
+                    "result_preview": payload[:240],
+                }
+            )
+            result_blocks.append(
+                {
+                    "toolResult": {
+                        "toolUseId": call["id"],
+                        "content": [{"text": payload}],
+                    }
+                }
+            )
+        bedrock_messages.append({"role": "user", "content": result_blocks})
+
+    result = ChatResult(
+        content=text,
+        tool_calls=[],
+        input_tokens=input_tokens or None,
+        output_tokens=output_tokens or None,
+    )
+    # Stash activity for callers that need the audit trail.
+    result.tool_activity = tool_activity  # type: ignore[attr-defined]
+    return result
+
+
 def continue_with_tool_results(
     messages: list[dict[str, str]],
     assistant_tool_calls: list[dict[str, Any]],
     tool_results: list[dict[str, Any]],
     *,
+    tools: list[dict[str, Any]] | None = None,
     temperature: float = 0.3,
     max_tokens: int = 500,
 ) -> ChatResult:
@@ -245,12 +316,15 @@ def continue_with_tool_results(
         }
         if system:
             kwargs["system"] = [{"text": system}]
+        # Bedrock requires toolConfig whenever the history contains toolUse/toolResult blocks.
+        if tools:
+            kwargs["toolConfig"] = {"tools": _to_bedrock_tools(tools)}
         response = _bedrock_client().converse(**kwargs)
         output = response.get("output", {}).get("message", {})
         usage = response.get("usage", {})
         return ChatResult(
             content=_extract_bedrock_text(output),
-            tool_calls=[],
+            tool_calls=_parse_bedrock_tool_calls(output),
             input_tokens=usage.get("inputTokens"),
             output_tokens=usage.get("outputTokens"),
         )
@@ -281,4 +355,4 @@ def continue_with_tool_results(
                 "content": result["content"],
             }
         )
-    return _openai_chat(followup, tools=None, temperature=temperature, max_tokens=max_tokens)
+    return _openai_chat(followup, tools=tools, temperature=temperature, max_tokens=max_tokens)

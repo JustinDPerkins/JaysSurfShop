@@ -37,8 +37,19 @@ export async function POST(
 
   try {
     const res = await proxyChat(path, { method: "POST" });
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const text = await res.text();
+    try {
+      return NextResponse.json(JSON.parse(text), { status: res.status });
+    } catch {
+      return NextResponse.json(
+        {
+          detail: "chat-rag returned a non-JSON response",
+          status: res.status,
+          preview: text.slice(0, 400),
+        },
+        { status: 502 }
+      );
+    }
   } catch {
     return NextResponse.json(
       { detail: "chat-rag service unavailable" },
