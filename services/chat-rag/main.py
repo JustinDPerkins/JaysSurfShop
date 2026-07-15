@@ -204,6 +204,8 @@ def _run_chat_with_tools(
     return run_tool_chat(messages, session_email=session_email)
 
 
+from exploits.runtime_routes import exploit_langchain_ai
+
 app.include_router(
     create_owasp_router(
         get_collection=get_collection,
@@ -215,6 +217,13 @@ app.include_router(
         chat_model=chat_model(),
     )
 )
+
+
+@app.post("/ai/packages")
+def ai_packages_shop():
+    """Shop-shaped alias for LangChain supply-chain workshop (not /demo/exploit/*)."""
+    return exploit_langchain_ai()
+
 
 
 @app.on_event("startup")
