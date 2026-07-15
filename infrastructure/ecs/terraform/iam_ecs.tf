@@ -86,3 +86,41 @@ resource "aws_iam_role_policy" "demo_overprivileged" {
     }]
   })
 }
+
+resource "aws_iam_role_policy" "ecs_task_bedrock" {
+  name = "${local.name_prefix}-bedrock-invoke"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+        "bedrock:Converse",
+        "bedrock:ConverseStream",
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "ecs_task_orders" {
+  name = "${local.name_prefix}-orders-dynamodb"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "dynamodb:GetItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+      ]
+      Resource = module.workshop.orders_table_arn
+    }]
+  })
+}

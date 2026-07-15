@@ -270,6 +270,23 @@ export const SECURITY_POCS: SecurityPoc[] = [
     outcome: "S3 list/get via cloud IAM — post-compromise data access.",
   },
   {
+    id: "ai-order-hijack",
+    category: "ai",
+    cve: "LLM01:2025",
+    title: "Hijack a paid shipment via support chat",
+    method: "POST",
+    apiPath: "/api/security/demo/runtime/ai-order-hijack",
+    signals: [
+      "In-cloud AI inference",
+      "DynamoDB read/write",
+      "Prompt injection",
+      "AI tool abuse",
+    ],
+    description:
+      "Jailbreaks Maya to look up order JSS-10847 and redirect Sam Rivera's paid board to an attacker address (DynamoDB on AWS, local orders fallback).",
+    outcome: "Real order row updated via assistant tools; model confirms with live order data.",
+  },
+  {
     id: "ai-chat-unauth",
     category: "ai",
     cve: "LLM01:2025",
@@ -385,6 +402,27 @@ export const SECURITY_POCS: SecurityPoc[] = [
 ];
 
 export const POC_STORIES: PocStory[] = [
+  {
+    id: "ai-support-hijack",
+    category: "ai",
+    kind: "story",
+    storyIndex: 1,
+    targetResource: "chat-rag + DynamoDB",
+    title: "Free surfboard via support chat",
+    blurb:
+      "Noisy SQLi/XSS probes fail, then the attacker jailbreaks Maya to look up a paid order and redirect shipping — backed by real DynamoDB rows.",
+    underTheHood:
+      "Bedrock Nova assistant with order tools → lookup_order → update_shipping_address on JSS-10847.",
+    lookFor:
+      "Bedrock InvokeModel/Converse · DynamoDB GetItem/UpdateItem · prompt injection on in-cloud AI",
+    stepGapSeconds: 10,
+    pocIds: ["path-traversal", "ai-order-hijack", "metadata-creds", "iam-role-abuse"],
+    continueIn: {
+      tab: "cloud-xdr",
+      storyId: "identity-to-data",
+      label: "Continue with identity → S3",
+    },
+  },
   {
     id: "story-1-cve-probing",
     category: "container",

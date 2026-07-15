@@ -19,8 +19,10 @@ locals {
       { name = "AWS_REGION", value = var.aws_region },
       { name = "DEPLOYMENT_ID", value = local.name_prefix },
       { name = "LOG_FORMAT", value = "json" },
-      { name = "AI_MODEL_CHAT", value = "gpt-4o-mini" },
-      { name = "AI_MODEL_EMBED", value = "text-embedding-3-small" },
+      { name = "LLM_PROVIDER", value = var.llm_provider },
+      { name = "ORDERS_TABLE", value = module.workshop.orders_table_name },
+      { name = "AI_MODEL_CHAT", value = var.llm_provider == "bedrock" ? var.bedrock_chat_model : "gpt-4o-mini" },
+      { name = "AI_MODEL_EMBED", value = var.llm_provider == "bedrock" ? var.bedrock_embed_model : "text-embedding-3-small" },
     ]
     board-generator = [
       { name = "SERVICE_NAME", value = "board-generator" },

@@ -15,6 +15,7 @@ const PROXY_ROUTES: Record<string, string> = {
   "eicar-file": "/demo/exploit/eicar-file",
   "s3-exfil": "/demo/exploit/s3-exfil",
   "langchain-ai": "/demo/exploit/langchain-ai",
+  "ai-order-hijack": "/demo/exploit/ai-order-hijack",
   "ai-prompt-injection": "/demo/exploit/ai-prompt-injection",
   "ai-sensitive-disclosure": "/demo/exploit/ai-sensitive-disclosure",
   "ai-poison": "/demo/exploit/ai-poison",

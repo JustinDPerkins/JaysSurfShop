@@ -77,3 +77,19 @@ variable "upwind_client_secret" {
   sensitive   = true
   default     = ""
 }
+
+variable "llm_provider" {
+  type        = string
+  default     = "bedrock"
+  description = "LLM backend for chat-rag: bedrock (AWS) or openai"
+}
+
+variable "bedrock_chat_model" {
+  type    = string
+  default = "amazon.nova-lite-v1:0"
+}
+
+variable "bedrock_embed_model" {
+  type    = string
+  default = "amazon.titan-embed-text-v2:0"
+}

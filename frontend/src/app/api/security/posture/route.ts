@@ -12,7 +12,7 @@ const BASE = {
       { path: "/", note: "Shop catalog" },
       { path: "/chat", note: "Shop Crew UI" },
       { path: "/design", note: "Create-A-Board UI" },
-      { path: "/api/chat", note: "Unauthenticated → OpenAI" },
+      { path: "/api/chat", note: "Unauthenticated → Bedrock (AWS) or OpenAI (local)" },
       { path: "/api/board", note: "Unauthenticated → image gen" },
       { path: "/api/checkout", note: "Cart checkout → order webhook (fulfillmentManifest YAML chain when poisoned)" },
       { path: "/api/security/posture", note: "Posture metadata" },
@@ -20,13 +20,13 @@ const BASE = {
     ],
     private: [
       { path: "/admin", note: "Staff ops — middleware cookie gate (CVE-2025-29927 bypassable)" },
-      { path: "chat-rag:8001/chat", note: "RAG + GPT-4o-mini" },
+      { path: "chat-rag:8001/chat", note: "RAG + Bedrock Nova / order tools → DynamoDB" },
       { path: "chat-rag:8001/demo/exploit/*", note: "Exploit lab" },
       { path: "chat-rag:8001/reindex", note: "Unauthenticated admin (local compose)" },
       { path: "board-generator:8002/generate", note: "DALL·E / gpt-image" },
     ],
-    external: ["openai-api"],
-    secrets: ["openai-api-key (Secrets Manager on AWS)"],
+    external: ["bedrock", "openai-api"],
+    secrets: ["openai-api-key (board-generator)", "orders-dynamodb (chat-rag IAM)"],
   },
 };
 

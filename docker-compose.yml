@@ -5,6 +5,9 @@ services:
       - "8001:8001"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - AI_MODEL_CHAT=${AI_MODEL_CHAT:-gpt-4o-mini}
+      - AI_MODEL_EMBED=${AI_MODEL_EMBED:-text-embedding-3-small}
     volumes:
       - ./services/chat-rag/data:/app/data
     healthcheck:

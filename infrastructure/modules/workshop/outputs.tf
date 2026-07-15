@@ -71,3 +71,11 @@ output "order_api_misconfiguration" {
     direct_invoke_example  = "curl -s ${aws_apigatewayv2_api.order_webhook.api_endpoint}/demo/eicar"
   }
 }
+
+output "orders_table_name" {
+  value = aws_dynamodb_table.orders.name
+}
+
+output "orders_table_arn" {
+  value = aws_dynamodb_table.orders.arn
+}

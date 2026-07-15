@@ -22,7 +22,7 @@
 
 ```
 Internet → ALB → frontend (ECS Fargate)
-                    ├── chat-rag (RAG + GPT-4o-mini, CVE-2023-50447)
+                    ├── chat-rag (RAG + Bedrock Nova, order tools → DynamoDB)
                     └── board-generator (DALL·E / gpt-image)
 
 Internet → API Gateway → order-webhook (Lambda, EICAR + PyYAML CVE-2020-14343)
@@ -32,7 +32,7 @@ Internet → API Gateway → order-webhook (Lambda, EICAR + PyYAML CVE-2020-1434
 | Service | Stack | Port / entry |
 |---------|-------|------|
 | **frontend** | Next.js 15, React, Tailwind | 3000 |
-| **chat-rag** | FastAPI, ChromaDB, OpenAI, exploit lab | 8001 |
+| **chat-rag** | FastAPI, ChromaDB, Bedrock (AWS) / OpenAI (local), DynamoDB orders | 8001 |
 | **board-generator** | FastAPI, image generation | 8002 |
 | **order-webhook** | Python Lambda, API Gateway HTTP API | `/checkout`, `/demo/*` |
 
@@ -56,9 +56,13 @@ Choose **ECS** or **EKS** — both share ECR, VPC, S3, Lambda, and GitHub OIDC v
 ```bash
 ./infrastructure/scripts/apply-ci.sh ecs   # or: eks
 # Add AWS_DEPLOY_ROLE_ARN to repo secrets, then run "Build and Push Images" in Actions
-export TF_VAR_openai_api_key="sk-..."
+# chat-rag defaults to Bedrock (Nova Lite + Titan embeddings); board-generator still needs OpenAI
+export TF_VAR_openai_api_key="sk-..."   # board-generator + optional openai fallback
+# export TF_VAR_llm_provider=bedrock    # default
 ./infrastructure/scripts/deploy-ecs.sh     # or: deploy-eks.sh
 ```
+
+Enable Nova Lite + Titan Embed access in the Bedrock console (model access) for the SurfShop account before first chat.
 
 See [infrastructure/ecs/README.md](infrastructure/ecs/README.md) and [infrastructure/eks/README.md](infrastructure/eks/README.md).
 

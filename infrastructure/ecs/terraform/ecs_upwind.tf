@@ -54,17 +54,26 @@ locals {
           { name = "S3_BUCKET", value = module.workshop.board_images_bucket },
           { name = "AI_MODEL", value = "gpt-image-1" },
         ] : [],
-        name == "chat-rag" ? [
-          { name = "AI_MODEL_CHAT", value = "gpt-4o-mini" },
-          { name = "AI_MODEL_EMBED", value = "text-embedding-3-small" },
-        ] : []
+        name == "chat-rag" ? concat(
+          [
+            { name = "LLM_PROVIDER", value = var.llm_provider },
+            { name = "ORDERS_TABLE", value = module.workshop.orders_table_name },
+          ],
+          var.llm_provider == "bedrock" ? [
+            { name = "AI_MODEL_CHAT", value = var.bedrock_chat_model },
+            { name = "AI_MODEL_EMBED", value = var.bedrock_embed_model },
+          ] : [
+            { name = "AI_MODEL_CHAT", value = "gpt-4o-mini" },
+            { name = "AI_MODEL_EMBED", value = "text-embedding-3-small" },
+          ]
+        ) : []
       )
 
       secrets = concat(
-        [{
+        (name == "board-generator" || (name == "chat-rag" && var.llm_provider == "openai")) ? [{
           name      = "OPENAI_API_KEY"
           valueFrom = module.workshop.openai_secret_arn
-        }],
+        }] : [],
         local.upwind_app_secrets
       )
 
