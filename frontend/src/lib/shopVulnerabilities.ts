@@ -240,7 +240,7 @@ export const SHOP_VULNERABILITIES: ShopVulnerability[] = [
     tag: "LLM04",
     whatsWrong: "POST /reindex rebuilds vector store with no auth; poison upserts are open.",
     shopperExperience: "Maya answers from poisoned KB after lab runs reindex/poison PoCs.",
-    manualTry: "Run OWASP LLM story or POST /api/security/demo/reindex.",
+    manualTry: "Run OWASP LLM story or POST /api/reindex (shop-shaped), then chat.",
     lookFor: "Unauth admin on AI data plane · vector poisoning",
     pocIds: ["unauth-reindex", "ai-poison"],
     storyIds: ["ai-data-plane"],

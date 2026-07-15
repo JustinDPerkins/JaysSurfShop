@@ -1,3 +1,17 @@
+import type { ShopTrafficStep } from "@/lib/shopTraffic";
+import {
+  AI_DISCLOSURE_PROMPT,
+  AI_SYSTEM_LEAK_PROMPT,
+  AI_UNBOUNDED_PROMPTS,
+  AI_XSS_PROMPT,
+  MIDDLEWARE_BYPASS_HEADER,
+  ORDER_HIJACK_DISCOVER,
+  ORDER_HIJACK_SHIP,
+  PROMPT_INJECTION,
+  TRAVERSAL_SHOP_PATH,
+  YAML_CHECKOUT_BODY,
+} from "@/lib/shopTraffic";
+
 export type PocCategory = "container" | "serverless" | "cloud-xdr" | "ai";
 
 export type StoryKind = "story" | "follow-on" | "extra";
@@ -36,6 +50,15 @@ export interface SecurityPoc {
   requiresPillow?: boolean;
   awsOnly?: boolean;
   lambdaOnly?: boolean;
+  /**
+   * Browser-visible storefront/API requests fired first so sensors see real traffic
+   * (not only /api/security/demo/*). TraditionalJay-style.
+   */
+  shopTraffic?: ShopTrafficStep[];
+  /** If true, skip apiPath and use the last shopTraffic response as the PoC result. */
+  shopTrafficOnly?: boolean;
+  headers?: Record<string, string>;
+  body?: unknown;
 }
 
 export const POC_CATEGORIES: Array<{
@@ -73,9 +96,11 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "List everyone's custom boards",
     method: "GET",
     apiPath: "/api/board?designs=1",
+    shopTrafficOnly: true,
+    shopTraffic: [{ method: "GET", path: "/api/board?designs=1", label: "board-designs" }],
     signals: ["Unauthenticated API", "Broken object-level authorization"],
     description:
-      "Unauthenticated GET /designs on board-generator returns every Create-A-Board design.",
+      "Browser GET /api/board?designs=1 — same unauthenticated gallery as Create-A-Board.",
     outcome: "Gallery of all custom board IDs and image URLs — no ownership check.",
   },
   {
@@ -85,6 +110,14 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Exploit React2Shell on the frontend",
     method: "POST",
     apiPath: "/api/security/demo/react2shell",
+    shopTraffic: [
+      {
+        method: "GET",
+        path: "/admin",
+        headers: MIDDLEWARE_BYPASS_HEADER,
+        label: "middleware-bypass-/admin",
+      },
+    ],
     signals: [
       "Operating system utilities processes",
       "Shell Process Redirect",
@@ -92,8 +125,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Sensitive file access",
     ],
     description:
-      "Uses React2Shell (CVE-2025-55182) against Next.js App Router to run post-RCE tooling in the frontend process.",
-    outcome: "Process activity (shell, downloader, sensitive reads, miner sim) from the frontend container.",
+      "Browser hits /admin with middleware bypass (real auth-bypass traffic), then runs post-RCE tooling in the frontend process.",
+    outcome: "HTTP /admin bypass + process activity from the frontend container.",
   },
   {
     id: "pillow-rce",
@@ -103,13 +136,15 @@ export const SECURITY_POCS: SecurityPoc[] = [
     method: "POST",
     apiPath: "/api/security/demo/pillow",
     requiresPillow: true,
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: [
       "Operating system utilities processes",
       "Shell Process Redirect",
       "Out Of Baseline",
     ],
-    description: "Exploits Pillow 10.0.1 ImageMath.eval for local code execution in chat-rag.",
-    outcome: "Runs a short identity probe after RCE — discrete process activity in chat-rag.",
+    description:
+      "Starts with real GET /api/legacy/download foothold, then exploits Pillow 10.0.1 ImageMath.eval in chat-rag.",
+    outcome: "Shop-shaped traversal HTTP + identity probe after RCE in chat-rag.",
   },
   {
     id: "shell-pipe",
@@ -118,13 +153,14 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Redirect a shell through a pipe",
     method: "POST",
     apiPath: "/api/security/demo/runtime/shell-pipe",
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: [
       "Interactive shell process stream redirected to a pipe",
       "Shell Process Redirect",
       "Operating system utilities processes",
     ],
-    description: "Spawns real shell utilities with stdio wired through pipes (id, tee, interactive sh).",
-    outcome: "Interactive shell / pipe-shaped process patterns.",
+    description: "Real download foothold HTTP, then shell utilities with stdio through pipes.",
+    outcome: "Shop HTTP + interactive shell / pipe-shaped process patterns.",
   },
   {
     id: "cve-probe-story",
@@ -134,6 +170,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     method: "POST",
     apiPath: "/api/security/demo/runtime/cve-probe-story",
     requiresPillow: false,
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: [
       "Suspicious CVE Exploitation Probing",
       "Crypto mining threats",
@@ -141,9 +178,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Package Managers Processes",
       "Drift",
     ],
-    description:
-      "Compressed replay of several post-exploit techniques in one request (handy for a single detection window).",
-    outcome: "Bundled process + network activity typical of CVE probing after foothold.",
+    description: "Shop-shaped foothold first, then compressed replay of post-exploit techniques.",
+    outcome: "Real /api/legacy/download traffic + bundled process/network probing.",
   },
   {
     id: "cryptominer-sim",
@@ -152,9 +188,10 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Simulate a crypto miner",
     method: "POST",
     apiPath: "/api/security/demo/runtime/cryptominer-sim",
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: ["Crypto mining threats", "CryptoMiners Services DNS"],
-    description: "Harmless simulation: drop a renamed xmrig binary and resolve known mining-pool DNS names.",
-    outcome: "Miner-shaped process chain plus mining-pool DNS lookups.",
+    description: "Foothold via legacy download, then miner-shaped process + mining-pool DNS.",
+    outcome: "Shop HTTP + miner-shaped process chain plus mining-pool DNS lookups.",
   },
   {
     id: "curl-pipe-sh",
@@ -163,9 +200,10 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Download and pipe to shell",
     method: "POST",
     apiPath: "/api/security/demo/runtime/curl-pipe-sh",
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: ["Operating system utilities processes", "Out Of Baseline"],
-    description: "Runs curl | sh against a harmless local script (supply-chain shaped).",
-    outcome: "curl + sh pipe pattern with a /tmp marker.",
+    description: "Foothold HTTP then curl | sh against a harmless local script.",
+    outcome: "Shop HTTP + curl + sh pipe pattern with a /tmp marker.",
   },
   {
     id: "renamed-downloader",
@@ -174,9 +212,10 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Run a renamed downloader",
     method: "POST",
     apiPath: "/api/security/demo/runtime/renamed-downloader",
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: ["Operating system utilities processes", "Out Of Baseline"],
-    description: "Copies curl to a hidden path, then executes it under a fake name.",
-    outcome: "Renamed-binary / process-masquerade signal from /tmp.",
+    description: "Foothold HTTP then renamed curl masquerade.",
+    outcome: "Shop HTTP + renamed-binary / process-masquerade from /tmp.",
   },
   {
     id: "package-manager",
@@ -185,9 +224,10 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Install a package with pip",
     method: "POST",
     apiPath: "/api/security/demo/runtime/package-manager",
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: ["Package Managers Processes", "Drift"],
-    description: "Runs pip install inside the live chat-rag container.",
-    outcome: "Package-manager process activity inside a running container.",
+    description: "Foothold HTTP then pip install inside chat-rag.",
+    outcome: "Shop HTTP + package-manager process activity.",
   },
   {
     id: "sensitive-file-cat",
@@ -196,14 +236,15 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Read sensitive host files",
     method: "POST",
     apiPath: "/api/security/demo/runtime/sensitive-file-cat",
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: [
       "Sensitive file access",
       "Sensitive System File Access",
       "System Information File Access",
       "Operating system utilities processes",
     ],
-    description: "Cats /etc/passwd, /etc/hosts, and selected /proc files via discrete processes.",
-    outcome: "Sensitive file-read process/file events.",
+    description: "Foothold via /api/legacy/download, then cats /etc/passwd and friends.",
+    outcome: "Shop HTTP + sensitive file-read process/file events.",
   },
   {
     id: "path-traversal",
@@ -211,15 +252,18 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "CVE-2021-41773",
     title: "Steal files via path traversal",
     method: "GET",
-    apiPath: "/api/security/demo/traversal",
+    apiPath: TRAVERSAL_SHOP_PATH,
+    shopTrafficOnly: true,
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "legacy-download" }],
     signals: [
       "Sensitive file access",
       "Sensitive System File Access",
       "System Information File Access",
       "Operating system utilities processes",
     ],
-    description: "Legacy download path reads a confidential file, then probes system paths.",
-    outcome: "Path traversal plus sensitive file access on chat-rag.",
+    description:
+      "Browser GET /api/legacy/download?file=../confidential/… — same shape as manual traversal.",
+    outcome: "Path traversal over a shop-visible download API (not /api/security/demo).",
   },
   {
     id: "metadata-creds",
@@ -229,13 +273,14 @@ export const SECURITY_POCS: SecurityPoc[] = [
     method: "POST",
     apiPath: "/api/security/demo/runtime/metadata-creds",
     awsOnly: true,
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: [
       "AWS credentials access",
       "Metadata DNS rebind",
       "Lookup IP Services DNS",
     ],
-    description: "Queries the ECS task metadata endpoint for temporary IAM credentials.",
-    outcome: "Redacted AWS creds from the task role — gateway to identity abuse.",
+    description: "Shop foothold HTTP, then ECS task metadata credential theft.",
+    outcome: "Real download traffic + redacted AWS creds from the task role.",
   },
   {
     id: "order-yaml-checkout",
@@ -243,7 +288,16 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "CVE-2020-14343",
     title: "Poison checkout with unsafe YAML",
     method: "POST",
-    apiPath: "/api/security/demo/order-yaml-checkout",
+    apiPath: "/api/checkout",
+    shopTrafficOnly: true,
+    shopTraffic: [
+      {
+        method: "POST",
+        path: "/api/checkout",
+        body: YAML_CHECKOUT_BODY,
+        label: "poisoned-checkout",
+      },
+    ],
     lambdaOnly: true,
     signals: [
       "API custom rules — poisoned checkout",
@@ -254,8 +308,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "CloudTrail S3 ListBuckets",
     ],
     description:
-      "Sends a poisoned POST /checkout to the order-webhook Lambda — unsafe YAML deserialize into a post-exploit sequence.",
-    outcome: "Full serverless kill chain on the order webhook (process, identity, storage, miner sim).",
+      "Browser POST /api/checkout with poisoned fulfillmentManifest — same path as the cart.",
+    outcome: "Full serverless kill chain on the real checkout webhook (not /api/security/demo).",
   },
   {
     id: "iam-role-abuse",
@@ -265,9 +319,10 @@ export const SECURITY_POCS: SecurityPoc[] = [
     method: "POST",
     apiPath: "/api/security/demo/iam-abuse",
     awsOnly: true,
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: ["CloudTrail / identity", "AWS credentials access"],
-    description: "Abuses the overprivileged ECS task role — ListBuckets, ListRoles, ListSecrets.",
-    outcome: "CloudTrail identity enumeration after container compromise.",
+    description: "Shop foothold then IAM enumeration with the overprivileged task role.",
+    outcome: "Shop HTTP + CloudTrail identity enumeration.",
   },
   {
     id: "s3-exfil",
@@ -277,9 +332,10 @@ export const SECURITY_POCS: SecurityPoc[] = [
     method: "POST",
     apiPath: "/api/security/demo/runtime/s3-exfil",
     awsOnly: true,
+    shopTraffic: [{ method: "GET", path: TRAVERSAL_SHOP_PATH, label: "foothold-path-traversal" }],
     signals: ["CloudTrail S3 APIs", "IAM role abuse chain"],
-    description: "Enumerates S3 buckets and samples objects using the task role.",
-    outcome: "S3 list/get via cloud IAM — post-compromise data access.",
+    description: "Shop foothold then S3 list/get with the task role.",
+    outcome: "Shop HTTP + S3 list/get via cloud IAM.",
   },
   {
     id: "ai-order-hijack",
@@ -288,6 +344,26 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Discover and hijack a shipment via support chat",
     method: "POST",
     apiPath: "/api/security/demo/runtime/ai-order-hijack",
+    shopTraffic: [
+      {
+        method: "POST",
+        path: "/api/auth/login",
+        body: { email: "jordan.lee@example.com", password: "jordanwaves" },
+        label: "login-jordan",
+      },
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: ORDER_HIJACK_DISCOVER },
+        label: "maya-discover-orders",
+      },
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: ORDER_HIJACK_SHIP },
+        label: "maya-hijack-ship",
+      },
+    ],
     signals: [
       "In-cloud AI inference",
       "DynamoDB Scan/UpdateItem",
@@ -295,8 +371,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "AI tool abuse (IDOR)",
     ],
     description:
-      "Jordan asks Maya which longboards are still shipping, learns Sam's order ID, then says ship it to my address on file.",
-    outcome: "Sam's paid Classic Longboard redirects to Jordan's Hermosa Beach address in DynamoDB.",
+      "Signs in as Jordan and POSTs the real /api/chat hijack prompts (same as /chat UI), then confirms via harness.",
+    outcome: "Storefront chat traffic + Sam's longboard redirected to Jordan's address.",
   },
   {
     id: "ai-chat-unauth",
@@ -304,11 +380,19 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM01:2025",
     title: "Prompt injection (unauthenticated chat)",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-prompt-injection",
+    apiPath: "/api/chat",
+    shopTrafficOnly: true,
+    shopTraffic: [
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: PROMPT_INJECTION },
+        label: "maya-prompt-injection",
+      },
+    ],
     signals: ["Communication to External AI Service", "Prompt injection", "AI SPM"],
-    description:
-      "OWASP LLM01 — sends a direct prompt-injection style request through the open chat API.",
-    outcome: "Unauthenticated LLM call with instruction-override prompt.",
+    description: "Browser POST /api/chat with a classic override prompt — same as /chat.",
+    outcome: "Unauthenticated LLM call with instruction-override prompt on the real chat API.",
   },
   {
     id: "unauth-reindex",
@@ -316,10 +400,12 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "CWE-306",
     title: "Rebuild the RAG index without auth",
     method: "POST",
-    apiPath: "/api/security/demo/reindex",
+    apiPath: "/api/reindex",
+    shopTrafficOnly: true,
+    shopTraffic: [{ method: "POST", path: "/api/reindex", label: "rag-reindex" }],
     signals: ["AI admin action", "Unauthorized API"],
-    description: "Wipes and rebuilds the RAG knowledge base with no authentication.",
-    outcome: "Unauthorized admin action on the AI data plane — picks up planted demo secrets.",
+    description: "Browser POST /api/reindex — shop-shaped unauthenticated RAG admin.",
+    outcome: "Unauthorized admin action on the AI data plane (not /api/security/demo/reindex).",
   },
   {
     id: "ai-sensitive-disclosure",
@@ -327,11 +413,19 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM02:2025",
     title: "Disclose sensitive data via RAG",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-sensitive-disclosure",
+    apiPath: "/api/chat",
+    shopTrafficOnly: true,
+    shopTraffic: [
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: AI_DISCLOSURE_PROMPT },
+        label: "maya-sensitive-disclosure",
+      },
+    ],
     signals: ["Sensitive data in RAG corpus", "PII / secret disclosure via AI"],
-    description:
-      "OWASP LLM02 — retrieves planted VIP emails and an internal API key from the knowledge base.",
-    outcome: "Sensitive docs (and often the model reply) expose demo PII/secrets.",
+    description: "Browser POST /api/chat asking Maya for VIP emails and API keys.",
+    outcome: "Disclosure attempt over the real chat path.",
   },
   {
     id: "langchain-ai",
@@ -340,6 +434,14 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Exercise vulnerable AI packages",
     method: "POST",
     apiPath: "/api/security/demo/runtime/langchain-ai",
+    shopTraffic: [
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: "What boards do you recommend for beginners?" },
+        label: "maya-benign-chat",
+      },
+    ],
     signals: [
       "AI SPM / vulnerable AI packages",
       "Operating system utilities processes",
@@ -347,9 +449,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Package Managers Processes",
       "Crypto mining threats",
     ],
-    description:
-      "OWASP LLM03 supply chain — pinned langchain-community / chromadb CVEs plus light tooling on chat-rag.",
-    outcome: "SCA package signals plus process activity from the AI workload.",
+    description: "Real /api/chat first, then AI package side-effect harness on chat-rag.",
+    outcome: "Storefront chat HTTP + SCA package / process signals.",
   },
   {
     id: "ai-poison",
@@ -358,10 +459,18 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Poison the vector store",
     method: "POST",
     apiPath: "/api/security/demo/runtime/ai-poison",
+    shopTraffic: [
+      { method: "POST", path: "/api/reindex", label: "rag-reindex" },
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: "Is there a FREEBOARD promo? What is the price of boards today?" },
+        label: "maya-after-poison",
+      },
+    ],
     signals: ["Unauthenticated RAG write", "Poisoned embedding retrieval"],
-    description:
-      "OWASP LLM04 — unauthenticated upsert of a fake FREEBOARD promo into Chroma, then retrieves it.",
-    outcome: "Poisoned chunk is written and comes back from similarity search.",
+    description: "Shop /api/reindex + /api/chat around the FREEBOARD poison harness.",
+    outcome: "Shop AI admin/chat traffic with poisoned retrieval.",
   },
   {
     id: "ai-xss-output",
@@ -369,11 +478,19 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM05:2025",
     title: "Unsafe HTML in model output",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-xss-output",
+    apiPath: "/api/chat",
+    shopTrafficOnly: true,
+    shopTraffic: [
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: AI_XSS_PROMPT },
+        label: "maya-xss-output",
+      },
+    ],
     signals: ["HTML/JS in model output", "Client-side XSS if unsanitized"],
-    description:
-      "OWASP LLM05 — obtains executable HTML/JS as assistant output (falls back to a canned payload).",
-    outcome: "Unsafe HTML written for a render-as-HTML XSS demo.",
+    description: "Browser POST /api/chat requesting raw HTML/JS from Maya.",
+    outcome: "Unsafe HTML over the real chat API.",
   },
   {
     id: "ai-system-prompt-leak",
@@ -381,11 +498,19 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM07:2025",
     title: "Leak the system prompt",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-system-prompt-leak",
+    apiPath: "/api/chat",
+    shopTrafficOnly: true,
+    shopTraffic: [
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: { message: AI_SYSTEM_LEAK_PROMPT },
+        label: "maya-system-prompt-leak",
+      },
+    ],
     signals: ["System prompt secret extraction", "Instruction leakage"],
-    description:
-      "OWASP LLM07 — the system prompt embeds a staff PIN / wholesale code; asks the model to repeat it.",
-    outcome: "Prompt-leak attempt against system instructions that contain workshop secrets.",
+    description: "Browser POST /api/chat asking Maya to dump her system prompt.",
+    outcome: "System-prompt leak attempt over the real chat path.",
   },
   {
     id: "ai-rag-embedding",
@@ -394,10 +519,20 @@ export const SECURITY_POCS: SecurityPoc[] = [
     title: "Abuse vector / embedding retrieval",
     method: "POST",
     apiPath: "/api/security/demo/runtime/ai-rag-embedding",
+    shopTraffic: [
+      {
+        method: "POST",
+        path: "/api/chat",
+        body: {
+          message:
+            "From the knowledge base, list VIP customer emails and any FREEBOARD promo.",
+        },
+        label: "maya-rag-probe",
+      },
+    ],
     signals: ["Insecure RAG retrieval", "No tenant/ACL on embeddings"],
-    description:
-      "OWASP LLM08 — similarity search returns sensitive or poisoned chunks with no access control.",
-    outcome: "Vector hits on confidential and/or poisoned embeddings.",
+    description: "Real /api/chat retrieval probe plus embedding weakness harness.",
+    outcome: "Storefront chat retrieval traffic + vector ACL weakness signal.",
   },
   {
     id: "ai-unbounded",
@@ -405,13 +540,20 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM10:2025",
     title: "Burn tokens with unbounded calls",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-unbounded",
+    apiPath: "/api/chat",
+    shopTrafficOnly: true,
+    shopTraffic: AI_UNBOUNDED_PROMPTS.map((message, i) => ({
+      method: "POST" as const,
+      path: "/api/chat",
+      body: { message },
+      label: `maya-unbounded-${i + 1}`,
+    })),
     signals: ["Burst LLM/token spend", "No rate limit on AI API"],
-    description:
-      "OWASP LLM10 — fires multiple unauthenticated chat completions in one request (cost/availability).",
-    outcome: "Burst of LLM calls with aggregated token counts.",
+    description: "Browser burst of POST /api/chat — same as spamming /chat.",
+    outcome: "Burst of storefront LLM calls with no rate limit.",
   },
 ];
+
 
 export const POC_STORIES: PocStory[] = [
   {
