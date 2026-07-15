@@ -14,7 +14,7 @@ const HELP_LINKS = [
   { href: "/chat", label: "Chat with Maya" },
   { href: "/design", label: "Create-A-Board" },
   { href: "/about", label: "Our Story" },
-  { href: "/security", label: "Exploit Lab" },
+  { href: "/security", label: "Security Workshop" },
 ];
 
 export default function Footer() {

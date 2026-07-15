@@ -45,30 +45,42 @@ export const POC_CATEGORIES: Array<{
 }> = [
   {
     id: "container",
-    label: "Container",
-    blurb: "Stories that run inside the chat-rag workload.",
+    label: "Container CVEs",
+    blurb: "Path traversal, Pillow RCE, and post-exploit runtime on chat-rag.",
   },
   {
     id: "serverless",
-    label: "Frontend & serverless",
-    blurb: "Stories on the storefront and order-webhook — separate hosts from container.",
+    label: "Lambda & storefront",
+    blurb: "React2Shell on the Next.js app and PyYAML on order-webhook.",
   },
   {
     id: "cloud-xdr",
-    label: "Identity",
-    blurb: "Steal workload credentials and abuse cloud identity to reach data.",
+    label: "Cloud XDR",
+    blurb: "Task metadata creds, IAM enumeration, and S3 exfiltration.",
   },
   {
     id: "ai",
-    label: "AI",
-    blurb: "OWASP LLM Top 10 style attacks against the shop assistant and RAG store.",
+    label: "AI & Maya",
+    blurb: "Order hijack, OWASP LLM Top 10, and unauthenticated RAG admin.",
   },
 ];
 
 export const SECURITY_POCS: SecurityPoc[] = [
   {
+    id: "design-gallery-leak",
+    category: "ai",
+    cve: "CWE-639",
+    title: "List everyone's custom boards",
+    method: "GET",
+    apiPath: "/api/board?designs=1",
+    signals: ["Unauthenticated API", "Broken object-level authorization"],
+    description:
+      "Unauthenticated GET /designs on board-generator returns every Create-A-Board design.",
+    outcome: "Gallery of all custom board IDs and image URLs — no ownership check.",
+  },
+  {
     id: "react2shell",
-    category: "container",
+    category: "serverless",
     cve: "CVE-2025-55182",
     title: "Exploit React2Shell on the frontend",
     method: "POST",
@@ -510,6 +522,12 @@ export const POC_STORIES: PocStory[] = [
 
 export function getStoriesForCategory(category: PocCategory): PocStory[] {
   return POC_STORIES.filter((story) => story.category === category);
+}
+
+/** All stories in presenter order: featured chains first, extras last. */
+export function getOrderedStories(): PocStory[] {
+  const order: PocStory["kind"][] = ["story", "follow-on", "extra"];
+  return [...POC_STORIES].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
 }
 
 export function isPocBlocked(

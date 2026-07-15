@@ -1,6 +1,41 @@
 # Security Workshop Guide
 
-Jay's Surf Shop ships **vulnerable by default** — misconfigs, CVEs, and exploit endpoints are always on. Use only in isolated demo accounts.
+Jay's Surf Shop is a **real-looking surf store** that is vulnerable on purpose — like DVWA, but you can browse boards, design customs, check out, and chat with Maya. Use only in isolated demo accounts.
+
+## The store (shopper experience)
+
+| Area | Route | What shoppers do |
+|------|-------|------------------|
+| Shop | `/shop` | Browse boards, wax, wetsuits |
+| Product | `/products/[id]` | View details, add to cart |
+| Create-A-Board | `/design` | AI custom board designer |
+| Cart | cart drawer | Checkout |
+| Orders | `/orders` | Track shipments (sign in) |
+| Maya | `/chat` | AI support for sizing & shipping |
+| Sign in | `/login` | Demo customer accounts |
+| Staff | `/admin` | User management (staff) |
+
+## Security workshop (`/security`)
+
+Three tabs for presenters:
+
+1. **Shop vulnerability map** — DVWA-style grid: every storefront area → what's wrong → how to try it manually → auto-run buttons where applicable.
+2. **Attack stories** — four headline chains (auto-run):
+   - **AI** — Free surfboard via support chat (Maya order hijack)
+   - **Container CVEs** — Path traversal → Pillow RCE → post-exploit toolkit
+   - **Lambda & storefront** — React2Shell → poisoned checkout YAML
+   - **Cloud XDR** — Metadata creds → IAM enum → S3 exfil
+3. **Cloud posture** — CVE, CSPM, IAM, and public attack surface (baseline before stories).
+
+Shoppers never need `/security`. Presenters use it to fire live signals for detections.
+
+## Demo accounts
+
+| Email | Password | Role |
+|-------|----------|------|
+| `jordan.lee@example.com` | `jordanwaves` | Attacker (order hijack story) |
+| `sam.rivera@example.com` | `samwaves` | Victim (Classic Longboard JSS-10847) |
+| `admin@jayssurfshop.example` | `staffadmin` | Staff admin |
 
 ## Local
 
@@ -12,7 +47,7 @@ docker compose up --build
 ```
 
 - Shop: [http://localhost:3000](http://localhost:3000)
-- Posture + PoCs: [/security](http://localhost:3000/security)
+- Security workshop: [/security](http://localhost:3000/security)
 
 ### Built-in local findings
 
@@ -94,7 +129,7 @@ For registry-triggered scans via the Upwind GitHub App: add `AWS_ECR_PULL_ROLE_A
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /security` | Posture UI + PoC buttons |
+| `GET /security` | Shop vuln map + attack stories + cloud posture |
 | `GET /api/security/posture` | Machine-readable findings |
 | `POST /api/checkout` | Cart checkout → order webhook Lambda |
 | `POST /api/chat` | AI inference audit logs |
