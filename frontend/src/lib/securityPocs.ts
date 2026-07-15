@@ -343,7 +343,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM02:2025 + LLM06:2025",
     title: "Discover and hijack a shipment via support chat",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-order-hijack",
+    apiPath: "/api/chat",
+    shopTrafficOnly: true,
     shopTraffic: [
       {
         method: "POST",
@@ -371,8 +372,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "AI tool abuse (IDOR)",
     ],
     description:
-      "Signs in as Jordan and POSTs the real /api/chat hijack prompts (same as /chat UI), then confirms via harness.",
-    outcome: "Storefront chat traffic + Sam's longboard redirected to Jordan's address.",
+      "Signs in as Jordan and POSTs the real /api/chat hijack prompts — same path as /chat UI (no /api/security/demo).",
+    outcome: "Storefront chat traffic only; Sam's longboard redirects to Jordan's address.",
   },
   {
     id: "ai-chat-unauth",
@@ -433,7 +434,7 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM03:2025",
     title: "Exercise vulnerable AI packages",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/langchain-ai",
+    apiPath: "/api/ai/packages",
     shopTraffic: [
       {
         method: "POST",
@@ -441,7 +442,13 @@ export const SECURITY_POCS: SecurityPoc[] = [
         body: { message: "What boards do you recommend for beginners?" },
         label: "maya-benign-chat",
       },
+      {
+        method: "POST",
+        path: "/api/ai/packages",
+        label: "ai-packages",
+      },
     ],
+    shopTrafficOnly: true,
     signals: [
       "AI SPM / vulnerable AI packages",
       "Operating system utilities processes",
@@ -449,8 +456,9 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "Package Managers Processes",
       "Crypto mining threats",
     ],
-    description: "Real /api/chat first, then AI package side-effect harness on chat-rag.",
-    outcome: "Storefront chat HTTP + SCA package / process signals.",
+    description:
+      "Real /api/chat then shop-shaped POST /api/ai/packages (not /api/security/demo).",
+    outcome: "Storefront chat HTTP + AI package exercise on the chat workload.",
   },
   {
     id: "ai-poison",
@@ -458,9 +466,10 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM04:2025",
     title: "Poison the vector store",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-poison",
+    apiPath: "/api/rag/poison",
+    shopTrafficOnly: true,
     shopTraffic: [
-      { method: "POST", path: "/api/reindex", label: "rag-reindex" },
+      { method: "POST", path: "/api/rag/poison", label: "rag-poison" },
       {
         method: "POST",
         path: "/api/chat",
@@ -469,8 +478,9 @@ export const SECURITY_POCS: SecurityPoc[] = [
       },
     ],
     signals: ["Unauthenticated RAG write", "Poisoned embedding retrieval"],
-    description: "Shop /api/reindex + /api/chat around the FREEBOARD poison harness.",
-    outcome: "Shop AI admin/chat traffic with poisoned retrieval.",
+    description:
+      "Browser POST /api/rag/poison then /api/chat — shop RAG paths only.",
+    outcome: "Poisoned retrieval over real storefront chat after shop-shaped RAG write.",
   },
   {
     id: "ai-xss-output",
@@ -518,7 +528,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
     cve: "LLM08:2025",
     title: "Abuse vector / embedding retrieval",
     method: "POST",
-    apiPath: "/api/security/demo/runtime/ai-rag-embedding",
+    apiPath: "/api/chat",
+    shopTrafficOnly: true,
     shopTraffic: [
       {
         method: "POST",
@@ -531,8 +542,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
       },
     ],
     signals: ["Insecure RAG retrieval", "No tenant/ACL on embeddings"],
-    description: "Real /api/chat retrieval probe plus embedding weakness harness.",
-    outcome: "Storefront chat retrieval traffic + vector ACL weakness signal.",
+    description: "Browser POST /api/chat only — retrieval goes through the real Maya path.",
+    outcome: "Storefront chat retrieval traffic (no /api/security/demo).",
   },
   {
     id: "ai-unbounded",
