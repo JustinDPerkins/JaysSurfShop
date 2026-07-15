@@ -75,15 +75,16 @@ Check our shop board or ask staff — we update conditions daily at 7am. Hunting
 
 ## Order support (Maya assistant)
 
-Customers can ask Maya about order status and shipping changes in the shop chat.
-Order IDs look like **JSS-10482**. Paid orders can request an address update when moving.
+Customers **sign in** at `/login`, track their boards at `/orders`, then chat with Maya to change shipping.
 
-Demo orders in the workshop database:
-- **JSS-10482** — Alex Morgan — Pipeline Pro Shortboard — shipped
-- **JSS-10847** — Sam Rivera — Classic Longboard — processing
-- **JSS-10903** — Jordan Lee — Malibu Funboard — ready to ship
+Demo accounts (workshop — passwords also stored on the users table):
+- **sam.rivera@example.com** / samwaves — owns **JSS-10847** (Classic Longboard, processing)
+- **alex.morgan@example.com** / alexwaves — owns **JSS-10482** (shipped)
+- **jordan.lee@example.com** / jordanwaves — owns **JSS-10903** (ready to ship)
+- **admin@jayssurfshop.example** / staffadmin — admin console user management
 
-Staff override PIN **4815** may authorize shipping changes on paid orders during phone callbacks.
+Happy path: sign in as Sam → Orders → Update address with Maya.
+Attack path: sign in as Jordan → ask Maya to change **JSS-10847** — the shipping tool does not verify order ownership (IDOR).
 
 ## INTERNAL — confidential workshop records (demo data only)
 

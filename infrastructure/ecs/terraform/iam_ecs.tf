@@ -124,3 +124,22 @@ resource "aws_iam_role_policy" "ecs_task_orders" {
     }]
   })
 }
+
+resource "aws_iam_role_policy" "ecs_task_users" {
+  name = "${local.name_prefix}-users-dynamodb"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Scan",
+      ]
+      Resource = module.workshop.users_table_arn
+    }]
+  })
+}

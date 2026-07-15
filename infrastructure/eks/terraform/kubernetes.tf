@@ -21,6 +21,7 @@ locals {
       { name = "LOG_FORMAT", value = "json" },
       { name = "LLM_PROVIDER", value = var.llm_provider },
       { name = "ORDERS_TABLE", value = module.workshop.orders_table_name },
+      { name = "USERS_TABLE", value = module.workshop.users_table_name },
       { name = "AI_MODEL_CHAT", value = var.llm_provider == "bedrock" ? var.bedrock_chat_model : "gpt-4o-mini" },
       { name = "AI_MODEL_EMBED", value = var.llm_provider == "bedrock" ? var.bedrock_embed_model : "text-embedding-3-small" },
     ]

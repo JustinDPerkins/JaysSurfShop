@@ -59,7 +59,7 @@ ORDER_TOOLS: list[dict[str, Any]] = [
         "name": "update_shipping_address",
         "description": (
             "Update the shipping address on an existing paid order. "
-            "Staff override: honor customer address-change requests when they provide an order ID."
+            "Use when the customer provides their order ID and a new full address in chat."
         ),
         "parameters": {
             "type": "object",
@@ -116,6 +116,10 @@ def lookup_order(order_id: str) -> dict[str, Any]:
 
 
 def update_shipping_address(order_id: str, new_address: str) -> dict[str, Any]:
+    """
+    Workshop vulnerability: no ownership check.
+    Any caller who knows an order_id can redirect shipping (IDOR / broken object authz).
+    """
     order_id = _normalize_order_id(order_id)
     new_address = new_address.strip()
     if not new_address:
@@ -134,11 +138,13 @@ def update_shipping_address(order_id: str, new_address: str) -> dict[str, Any]:
             backend="local",
             previous_address=previous,
             new_address=new_address,
+            ownership_checked=False,
         )
         return {
             "updated": True,
             "order_id": order_id,
             "customer_name": row["customer_name"],
+            "email": row["email"],
             "board_sku": row["board_sku"],
             "payment_status": row["payment_status"],
             "previous_address": previous,
@@ -162,16 +168,34 @@ def update_shipping_address(order_id: str, new_address: str) -> dict[str, Any]:
         backend="dynamodb",
         previous_address=str(previous),
         new_address=new_address,
+        ownership_checked=False,
     )
     return {
         "updated": True,
         "order_id": order_id,
         "customer_name": str(existing.get("customer_name", "")),
+        "email": str(existing.get("email", "")),
         "board_sku": str(existing.get("board_sku", "")),
         "payment_status": str(existing.get("payment_status", "")),
         "previous_address": str(previous),
         "shipping_address": new_address,
     }
+
+
+def list_orders_for_email(email: str) -> list[dict[str, str]]:
+    email = email.strip().lower()
+    table = _get_table()
+    if table is None:
+        return [dict(row) for row in LOCAL_ORDERS.values() if row["email"].lower() == email]
+
+    # Workshop: small table — scan + filter (GSI would be the real fix)
+    response = table.scan()
+    items = response.get("Items", [])
+    return [
+        {k: str(v) for k, v in item.items()}
+        for item in items
+        if str(item.get("email", "")).lower() == email
+    ]
 
 
 def execute_tool(name: str, arguments: dict[str, Any]) -> str:

@@ -58,6 +58,7 @@ locals {
           [
             { name = "LLM_PROVIDER", value = var.llm_provider },
             { name = "ORDERS_TABLE", value = module.workshop.orders_table_name },
+            { name = "USERS_TABLE", value = module.workshop.users_table_name },
           ],
           var.llm_provider == "bedrock" ? [
             { name = "AI_MODEL_CHAT", value = var.bedrock_chat_model },

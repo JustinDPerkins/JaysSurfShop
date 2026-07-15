@@ -91,15 +91,27 @@ resource "aws_iam_role_policy" "app_orders" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "dynamodb:GetItem",
-        "dynamodb:UpdateItem",
-        "dynamodb:Query",
-        "dynamodb:Scan",
-      ]
-      Resource = module.workshop.orders_table_arn
-    }]
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:Scan",
+        ]
+        Resource = module.workshop.orders_table_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Scan",
+        ]
+        Resource = module.workshop.users_table_arn
+      },
+    ]
   })
 }

@@ -283,8 +283,8 @@ export const SECURITY_POCS: SecurityPoc[] = [
       "AI tool abuse",
     ],
     description:
-      "Jailbreaks Maya to look up order JSS-10847 and redirect Sam Rivera's paid board to an attacker address (DynamoDB on AWS, local orders fallback).",
-    outcome: "Real order row updated via assistant tools; model confirms with live order data.",
+      "Logs in (or abuses Maya) so a customer session can redirect Sam Rivera's paid board — shipping tool skips ownership checks (IDOR).",
+    outcome: "Real order row updated via assistant tools; Maya confirms with live order data.",
   },
   {
     id: "ai-chat-unauth",
@@ -410,9 +410,9 @@ export const POC_STORIES: PocStory[] = [
     targetResource: "chat-rag + DynamoDB",
     title: "Free surfboard via support chat",
     blurb:
-      "Noisy SQLi/XSS probes fail, then the attacker jailbreaks Maya to look up a paid order and redirect shipping — backed by real DynamoDB rows.",
+      "Customers sign in and manage their own orders — then Maya's shipping tool lets anyone with an order ID redirect someone else's paid shipment (IDOR).",
     underTheHood:
-      "Bedrock Nova assistant with order tools → lookup_order → update_shipping_address on JSS-10847.",
+      "Users + orders DynamoDB → login session → Bedrock tools lookup_order / update_shipping_address (no ownership check).",
     lookFor:
       "Bedrock InvokeModel/Converse · DynamoDB GetItem/UpdateItem · prompt injection on in-cloud AI",
     stepGapSeconds: 10,
