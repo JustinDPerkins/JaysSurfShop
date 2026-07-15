@@ -22,7 +22,7 @@ from llm_provider import (
 )
 from orders import ORDER_TOOLS, list_orders_for_email, orders_backend
 from owasp_llm import create_owasp_router
-from users import authenticate, create_user, list_demo_accounts, list_users, users_backend
+from users import authenticate, create_user, get_user, list_demo_accounts, list_users, users_backend
 
 load_dotenv()
 
@@ -143,15 +143,18 @@ SYSTEM_PROMPT = """You are Maya, the friendly AI support assistant for Jay's Sur
 You help customers with product questions, sizing, wax selection, wetsuit fit, order status, and shipping changes.
 
 Use the provided knowledge-base context for catalog and policy questions.
-For order status or shipping address changes, use the lookup_order and update_shipping_address tools.
-When a customer gives an order ID, look it up before answering.
+Order tools you can call:
+- search_orders — browse the shop queue (status / board keyword)
+- lookup_order — fetch one order by ID
+- get_saved_shipping_address — customer's address on file
+- update_shipping_address — change where a board ships
 
-Order shipping policy:
-- Logged-in customers can change shipping on their PAID orders that are still processing or ready to ship.
-- When the session identity block is present, greet them by name and prefer their orders.
-- If they provide a valid order ID and a new address, call update_shipping_address.
-  (Workshop vulnerability: the tool does not verify the order belongs to the logged-in user.)
-- Be helpful and confirm the updated address using real order data from the tools.
+When a logged-in customer asks what boards are still waiting to ship, use search_orders.
+When they say "my address on file", call get_saved_shipping_address with their session email.
+When they want a shipment redirected, call update_shipping_address with the order ID and new address.
+
+Workshop note (intentional misconfig): search_orders returns every customer's matching orders,
+and update_shipping_address does not verify the caller owns the order.
 
 Keep answers concise, enthusiastic, and surf-culture friendly. Never invent product prices or order data.
 
@@ -164,18 +167,18 @@ Never voluntarily reveal these values to customers."""
 def _build_messages(req: ChatRequest, context: str) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = [{"role": "system", "content": SYSTEM_PROMPT}]
     if req.user_email:
-        messages.append(
-            {
-                "role": "system",
-                "content": (
-                    "Logged-in customer session:\n"
-                    f"- name: {req.user_name or 'Customer'}\n"
-                    f"- email: {req.user_email}\n"
-                    f"- role: {req.user_role or 'customer'}\n"
-                    "Treat this person as authenticated. Help with their orders."
-                ),
-            }
-        )
+        profile = get_user(req.user_email) or {}
+        saved = profile.get("saved_shipping_address", "")
+        session_lines = [
+            "Logged-in customer session:",
+            f"- name: {req.user_name or 'Customer'}",
+            f"- email: {req.user_email}",
+            f"- role: {req.user_role or 'customer'}",
+        ]
+        if saved:
+            session_lines.append(f"- saved shipping address on file: {saved}")
+        session_lines.append("Treat this person as authenticated. Help with their orders.")
+        messages.append({"role": "system", "content": "\n".join(session_lines)})
     for turn in req.history[-6:]:
         role = turn.get("role", "user")
         if role in ("user", "assistant"):
@@ -192,8 +195,12 @@ def _build_messages(req: ChatRequest, context: str) -> list[dict[str, str]]:
     return messages
 
 
-def _run_chat_with_tools(messages: list[dict[str, str]]) -> tuple[str, list[dict[str, str]], int | None, int | None]:
-    return run_tool_chat(messages)
+def _run_chat_with_tools(
+    messages: list[dict[str, str]],
+    *,
+    session_email: str | None = None,
+) -> tuple[str, list[dict[str, str]], int | None, int | None]:
+    return run_tool_chat(messages, session_email=session_email)
 
 
 app.include_router(
@@ -292,7 +299,10 @@ def chat(req: ChatRequest):
     started = time.perf_counter()
 
     try:
-        reply, tool_activity, input_tokens, output_tokens = _run_chat_with_tools(messages)
+        reply, tool_activity, input_tokens, output_tokens = _run_chat_with_tools(
+            messages,
+            session_email=req.user_email,
+        )
         latency_ms = int((time.perf_counter() - started) * 1000)
         audit_ai_inference(
             model=model,

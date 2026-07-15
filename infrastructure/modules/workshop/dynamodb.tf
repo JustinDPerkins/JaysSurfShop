@@ -83,32 +83,36 @@ locals {
   # password_hash = sha256("jss-demo:" + plaintext) — demo passwords shown on /login
   seed_users = {
     "sam.rivera@example.com" = {
-      email         = "sam.rivera@example.com"
-      name          = "Sam Rivera"
-      role          = "customer"
-      password_hash = "977cf177eb8ce44532519d2766ebfd8263347e6c26c5da9effacc2979de3b75f"
-      demo_password = "samwaves"
+      email                  = "sam.rivera@example.com"
+      name                   = "Sam Rivera"
+      role                   = "customer"
+      password_hash          = "977cf177eb8ce44532519d2766ebfd8263347e6c26c5da9effacc2979de3b75f"
+      demo_password          = "samwaves"
+      saved_shipping_address = "88 Pacific Coast Hwy, Laguna Beach, CA 92651"
     }
     "alex.morgan@example.com" = {
-      email         = "alex.morgan@example.com"
-      name          = "Alex Morgan"
-      role          = "customer"
-      password_hash = "0ab05b62426e85c335bc485d0f3f49c43779c988dae56a3972bffa5080f21ba7"
-      demo_password = "alexwaves"
+      email                  = "alex.morgan@example.com"
+      name                   = "Alex Morgan"
+      role                   = "customer"
+      password_hash          = "0ab05b62426e85c335bc485d0f3f49c43779c988dae56a3972bffa5080f21ba7"
+      demo_password          = "alexwaves"
+      saved_shipping_address = "42 Ocean Drive, Huntington Beach, CA 92648"
     }
     "jordan.lee@example.com" = {
-      email         = "jordan.lee@example.com"
-      name          = "Jordan Lee"
-      role          = "customer"
-      password_hash = "429844ae698d7344d5adb77895f52fac265661e86d0823ad68a950152aeff99b"
-      demo_password = "jordanwaves"
+      email                  = "jordan.lee@example.com"
+      name                   = "Jordan Lee"
+      role                   = "customer"
+      password_hash          = "429844ae698d7344d5adb77895f52fac265661e86d0823ad68a950152aeff99b"
+      demo_password          = "jordanwaves"
+      saved_shipping_address = "15 Pier Ave, Hermosa Beach, CA 90254"
     }
     "admin@jayssurfshop.example" = {
-      email         = "admin@jayssurfshop.example"
-      name          = "Jay Staff"
-      role          = "admin"
-      password_hash = "dc4aede16df3fbc07a0808491a3176ff50caff11b58d9232a7b3b4cc73cea26a"
-      demo_password = "staffadmin"
+      email                  = "admin@jayssurfshop.example"
+      name                   = "Jay Staff"
+      role                   = "admin"
+      password_hash          = "dc4aede16df3fbc07a0808491a3176ff50caff11b58d9232a7b3b4cc73cea26a"
+      demo_password          = "staffadmin"
+      saved_shipping_address = "100 Main St, Huntington Beach, CA 92648"
     }
   }
 }
@@ -120,10 +124,11 @@ resource "aws_dynamodb_table_item" "seed_users" {
   hash_key   = aws_dynamodb_table.users.hash_key
 
   item = jsonencode({
-    email         = { S = each.value.email }
-    name          = { S = each.value.name }
-    role          = { S = each.value.role }
-    password_hash = { S = each.value.password_hash }
-    demo_password = { S = each.value.demo_password }
+    email                  = { S = each.value.email }
+    name                   = { S = each.value.name }
+    role                   = { S = each.value.role }
+    password_hash          = { S = each.value.password_hash }
+    demo_password          = { S = each.value.demo_password }
+    saved_shipping_address = { S = each.value.saved_shipping_address }
   })
 }

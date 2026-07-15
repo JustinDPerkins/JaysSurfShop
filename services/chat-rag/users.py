@@ -15,6 +15,7 @@ LOCAL_USERS: dict[str, dict[str, str]] = {
         "role": "customer",
         "password_hash": "977cf177eb8ce44532519d2766ebfd8263347e6c26c5da9effacc2979de3b75f",
         "demo_password": "samwaves",
+        "saved_shipping_address": "88 Pacific Coast Hwy, Laguna Beach, CA 92651",
     },
     "alex.morgan@example.com": {
         "email": "alex.morgan@example.com",
@@ -22,6 +23,7 @@ LOCAL_USERS: dict[str, dict[str, str]] = {
         "role": "customer",
         "password_hash": "0ab05b62426e85c335bc485d0f3f49c43779c988dae56a3972bffa5080f21ba7",
         "demo_password": "alexwaves",
+        "saved_shipping_address": "42 Ocean Drive, Huntington Beach, CA 92648",
     },
     "jordan.lee@example.com": {
         "email": "jordan.lee@example.com",
@@ -29,6 +31,7 @@ LOCAL_USERS: dict[str, dict[str, str]] = {
         "role": "customer",
         "password_hash": "429844ae698d7344d5adb77895f52fac265661e86d0823ad68a950152aeff99b",
         "demo_password": "jordanwaves",
+        "saved_shipping_address": "15 Pier Ave, Hermosa Beach, CA 90254",
     },
     "admin@jayssurfshop.example": {
         "email": "admin@jayssurfshop.example",
@@ -36,6 +39,7 @@ LOCAL_USERS: dict[str, dict[str, str]] = {
         "role": "admin",
         "password_hash": "dc4aede16df3fbc07a0808491a3176ff50caff11b58d9232a7b3b4cc73cea26a",
         "demo_password": "staffadmin",
+        "saved_shipping_address": "100 Main St, Huntington Beach, CA 92648",
     },
 }
 
@@ -61,10 +65,32 @@ def _get_table():
 
 
 def _public_user(row: dict[str, Any]) -> dict[str, str]:
-    return {
+    out = {
         "email": str(row.get("email", "")),
         "name": str(row.get("name", "")),
         "role": str(row.get("role", "customer")),
+    }
+    if row.get("saved_shipping_address"):
+        out["saved_shipping_address"] = str(row["saved_shipping_address"])
+    return out
+
+
+def get_saved_shipping_address(email: str) -> dict[str, Any]:
+    email = email.strip().lower()
+    if not email:
+        return {"found": False, "error": "Email required"}
+    row = get_user(email)
+    if not row:
+        return {"found": False, "email": email, "error": "Account not found"}
+    address = row.get("saved_shipping_address", "")
+    if not address:
+        return {"found": False, "email": email, "error": "No saved address on file"}
+    audit_event("saved_address_lookup", email=email)
+    return {
+        "found": True,
+        "email": email,
+        "name": row.get("name", ""),
+        "saved_shipping_address": address,
     }
 
 

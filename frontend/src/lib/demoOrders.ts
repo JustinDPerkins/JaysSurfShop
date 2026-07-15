@@ -48,9 +48,9 @@ export function lookupDemoOrder(raw: string): DemoOrder | null {
 }
 
 export const ORDER_CHAT_STARTERS = [
+  "Any paid longboards still waiting to ship?",
+  "Ship that order to my address on file",
   "Where is my order?",
-  "I need to change my shipping address",
-  "What's on order JSS-10847?",
 ];
 
 export function shippingChangeDraft(orderId: string): string {

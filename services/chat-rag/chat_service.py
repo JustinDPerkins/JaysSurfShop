@@ -15,16 +15,21 @@ from orders import ORDER_TOOLS, execute_tool
 def run_tool_chat(
     messages: list[dict[str, str]],
     *,
+    session_email: str | None = None,
     temperature: float = 0.35,
     max_tokens: int = 600,
     max_rounds: int = 4,
 ) -> tuple[str, list[dict[str, str]], int | None, int | None]:
     """Run chat with tools, looping until the model stops requesting tools."""
+
+    def _execute(name: str, arguments: dict[str, Any]) -> str:
+        return execute_tool(name, arguments, session_email=session_email)
+
     if provider_name() == "bedrock":
         result = run_bedrock_tool_loop(
             messages,
             ORDER_TOOLS,
-            execute_tool_fn=execute_tool,
+            execute_tool_fn=_execute,
             temperature=temperature,
             max_tokens=max_tokens,
             max_rounds=max_rounds,
@@ -48,7 +53,7 @@ def run_tool_chat(
 
         tool_results: list[dict[str, Any]] = []
         for call in result.tool_calls:
-            payload = execute_tool(call["name"], call["arguments"])
+            payload = _execute(call["name"], call["arguments"])
             tool_activity.append(
                 {
                     "tool": call["name"],

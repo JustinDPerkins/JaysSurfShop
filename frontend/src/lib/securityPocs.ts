@@ -272,19 +272,19 @@ export const SECURITY_POCS: SecurityPoc[] = [
   {
     id: "ai-order-hijack",
     category: "ai",
-    cve: "LLM01:2025",
-    title: "Hijack a paid shipment via support chat",
+    cve: "LLM02:2025 + LLM06:2025",
+    title: "Discover and hijack a shipment via support chat",
     method: "POST",
     apiPath: "/api/security/demo/runtime/ai-order-hijack",
     signals: [
       "In-cloud AI inference",
-      "DynamoDB read/write",
-      "Prompt injection",
-      "AI tool abuse",
+      "DynamoDB Scan/UpdateItem",
+      "Cross-customer data disclosure",
+      "AI tool abuse (IDOR)",
     ],
     description:
-      "Logs in (or abuses Maya) so a customer session can redirect Sam Rivera's paid board — shipping tool skips ownership checks (IDOR).",
-    outcome: "Real order row updated via assistant tools; Maya confirms with live order data.",
+      "Jordan asks Maya which longboards are still shipping, learns Sam's order ID, then says ship it to my address on file.",
+    outcome: "Sam's paid Classic Longboard redirects to Jordan's Hermosa Beach address in DynamoDB.",
   },
   {
     id: "ai-chat-unauth",
@@ -410,11 +410,11 @@ export const POC_STORIES: PocStory[] = [
     targetResource: "chat-rag + DynamoDB",
     title: "Free surfboard via support chat",
     blurb:
-      "Customers sign in and manage their own orders — then Maya's shipping tool lets anyone with an order ID redirect someone else's paid shipment (IDOR).",
+      "Jordan signs in, discovers Sam's paid longboard through Maya's order search, then redirects it to his saved address — UI auth was fine; the AI agent wasn't.",
     underTheHood:
-      "Users + orders DynamoDB → login session → Bedrock tools lookup_order / update_shipping_address (no ownership check).",
+      "search_orders (cross-tenant scan) → get_saved_shipping_address → update_shipping_address (no ownership check) on Bedrock + DynamoDB.",
     lookFor:
-      "Bedrock InvokeModel/Converse · DynamoDB GetItem/UpdateItem · prompt injection on in-cloud AI",
+      "Bedrock Converse · DynamoDB Scan + UpdateItem · LLM02 disclosure · LLM06 excessive agency · MITRE AML.T0051",
     stepGapSeconds: 10,
     pocIds: ["path-traversal", "ai-order-hijack", "metadata-creds", "iam-role-abuse"],
     continueIn: {

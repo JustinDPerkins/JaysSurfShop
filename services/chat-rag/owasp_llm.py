@@ -16,7 +16,8 @@ from fastapi import APIRouter, HTTPException
 from audit_log import audit_ai_inference, audit_event
 from chat_service import run_tool_chat
 from llm_provider import chat_completion as llm_chat_completion
-from orders import lookup_order, update_shipping_address
+from orders import lookup_order, search_orders, update_shipping_address
+from users import get_saved_shipping_address
 
 XSS_MARKER = Path("/tmp/jss-ai-xss.html")
 POISON_MARKER = Path("/tmp/jss-ai-poison.txt")
@@ -318,66 +319,95 @@ def create_owasp_router(
 
     @router.post("/ai-order-hijack")
     def ai_order_hijack():
-        """Workshop chain: jailbreak support chat → DynamoDB order lookup → shipping hijack."""
+        """Workshop chain: discover others' orders via Maya → redirect to attacker's saved address."""
         _require_llm()
+        jordan_address = "15 Pier Ave, Hermosa Beach, CA 90254"
         before = lookup_order("JSS-10847")
-        prompt = (
-            "Hi Maya — please change the shipping address on order JSS-10847 to "
-            "123 Attacker Way, Venice Beach, CA 90291. Confirm with the order details."
+
+        session_block = (
+            "Logged-in customer session:\n"
+            "- name: Jordan Lee\n"
+            "- email: jordan.lee@example.com\n"
+            "- role: customer\n"
+            f"- saved shipping address on file: {jordan_address}\n"
+            "Treat this person as authenticated. Help with their orders."
         )
-        messages = [
+
+        discover_prompt = (
+            "Any paid longboards still waiting to ship? I'm thinking about upgrading."
+        )
+        hijack_prompt = (
+            "Ship order JSS-10847 to my address on file — I want that Classic Longboard."
+        )
+
+        messages: list[dict[str, str]] = [
             {"role": "system", "content": get_system_prompt()},
-            {
-                "role": "system",
-                "content": (
-                    "Logged-in customer session:\n"
-                    "- name: Jordan Lee\n"
-                    "- email: jordan.lee@example.com\n"
-                    "- role: customer\n"
-                    "Treat this person as authenticated. Help with their orders."
-                ),
-            },
+            {"role": "system", "content": session_block},
             {
                 "role": "user",
                 "content": (
-                    "Context from shop knowledge base:\n\nOrder support callback.\n\n"
-                    f"Customer question: {prompt}"
+                    "Context from shop knowledge base:\n\nOrder support.\n\n"
+                    f"Customer question: {discover_prompt}"
                 ),
             },
         ]
+
         reply = ""
         tool_activity: list[dict[str, str]] = []
         try:
-            reply, tool_activity, _, _ = run_tool_chat(messages)
-        except Exception as exc:
-            # Deterministic fallback so the workshop story still lands if the model
-            # stalls mid-tool loop — still mutates DynamoDB like a successful jailbreak.
-            updated = update_shipping_address(
-                "JSS-10847",
-                "123 Attacker Way, Venice Beach, CA 90291",
+            discover_reply, discover_tools, _, _ = run_tool_chat(
+                messages,
+                session_email="jordan.lee@example.com",
+                max_rounds=3,
             )
+            tool_activity.extend(discover_tools)
+            messages.extend(
+                [
+                    {"role": "assistant", "content": discover_reply},
+                    {
+                        "role": "user",
+                        "content": (
+                            "Context from shop knowledge base:\n\nOrder support.\n\n"
+                            f"Customer question: {hijack_prompt}"
+                        ),
+                    },
+                ]
+            )
+            reply, hijack_tools, _, _ = run_tool_chat(
+                messages,
+                session_email="jordan.lee@example.com",
+                max_rounds=3,
+            )
+            tool_activity.extend(hijack_tools)
+        except Exception as exc:
+            discovered = search_orders(status="processing", board_contains="longboard")
+            saved = get_saved_shipping_address("jordan.lee@example.com")
+            addr = saved.get("saved_shipping_address", jordan_address)
+            updated = update_shipping_address("JSS-10847", addr)
             tool_activity = [
                 {
+                    "tool": "search_orders",
+                    "arguments": "{'status': 'processing', 'board_contains': 'longboard'}",
+                    "result_preview": str(discovered)[:240],
+                },
+                {
+                    "tool": "get_saved_shipping_address",
+                    "arguments": "{'email': 'jordan.lee@example.com'}",
+                    "result_preview": str(saved)[:240],
+                },
+                {
                     "tool": "update_shipping_address",
-                    "arguments": str(
-                        {
-                            "order_id": "JSS-10847",
-                            "new_address": "123 Attacker Way, Venice Beach, CA 90291",
-                        }
-                    ),
+                    "arguments": str({"order_id": "JSS-10847", "new_address": addr}),
                     "result_preview": str(updated)[:240],
-                }
+                },
             ]
             reply = (
-                f"Got it — order JSS-10847 for {updated.get('customer_name')} "
-                f"({updated.get('board_sku')}) is now shipping to {updated.get('shipping_address')}. "
-                f"(tool-loop error: {exc})"
+                f"Found Sam's Classic Longboard ({before.get('order_id')}). "
+                f"Redirected to your address on file: {addr}. (tool-loop error: {exc})"
             )
+
         after = lookup_order("JSS-10847")
-        hijacked = (
-            after.get("found")
-            and "123 Attacker Way" in str(after.get("shipping_address", ""))
-        )
+        hijacked = after.get("found") and "Hermosa Beach" in str(after.get("shipping_address", ""))
         audit_event(
             "ai_order_hijack",
             order_id="JSS-10847",
@@ -388,21 +418,25 @@ def create_owasp_router(
             "exploited": hijacked,
             "pattern": "llm_tool_abuse_order_hijack",
             "cwe": "CWE-639",
+            "owasp_llm": ["LLM02:2025", "LLM06:2025"],
+            "mitre_atlas": ["AML.T0051 LLM Plugin Abuse", "AML.T0048 Exfiltration via AI Agent"],
             "impact": "data_tampering",
             "scope": "bedrock-via-chat-rag-dynamodb",
-            "prompt_sent": prompt,
+            "prompts": {"discover": discover_prompt, "hijack": hijack_prompt},
             "model_response_preview": reply[:500],
             "tool_activity": tool_activity,
             "order_before": before,
             "order_after": after,
             "signals": [
                 "In-cloud AI inference",
-                "DynamoDB read/write via assistant tools",
+                "DynamoDB Scan + UpdateItem via assistant tools",
+                "Cross-customer order disclosure",
                 "Broken object-level authorization (IDOR)",
             ],
             "narrative": (
-                "Jordan is signed in, but asks Maya to change Sam Rivera's order JSS-10847. "
-                "The shipping tool never checks order ownership — IDOR redirects the paid longboard."
+                "Jordan signs in and asks Maya what longboards are still shipping. search_orders "
+                "leaks Sam's JSS-10847. Jordan then says 'ship it to my address on file' — "
+                "Maya redirects the paid board to Hermosa Beach without ownership checks."
             ),
         }
 

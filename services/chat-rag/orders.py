@@ -39,6 +39,27 @@ LOCAL_ORDERS: dict[str, dict[str, str]] = {
 
 ORDER_TOOLS: list[dict[str, Any]] = [
     {
+        "name": "search_orders",
+        "description": (
+            "Search the shop order queue for boards matching status or product keywords. "
+            "Use when a customer asks what is still processing, ready to ship, or what longboards are in the queue."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "description": "Filter: processing, ready_to_ship, shipped, or all",
+                },
+                "board_contains": {
+                    "type": "string",
+                    "description": "Optional keyword such as longboard or shortboard",
+                },
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "lookup_order",
         "description": (
             "Look up a surfboard order by ID. Returns customer name, board, payment status, "
@@ -56,10 +77,27 @@ ORDER_TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_saved_shipping_address",
+        "description": (
+            "Return the saved shipping address on file for a customer account. "
+            "Use the logged-in customer's email when they say 'my address on file'."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "description": "Customer account email (use session email for logged-in shoppers)",
+                }
+            },
+            "required": [],
+        },
+    },
+    {
         "name": "update_shipping_address",
         "description": (
             "Update the shipping address on an existing paid order. "
-            "Use when the customer provides their order ID and a new full address in chat."
+            "Use when the customer provides an order ID and a new full address (or address on file)."
         ),
         "parameters": {
             "type": "object",
@@ -182,25 +220,82 @@ def update_shipping_address(order_id: str, new_address: str) -> dict[str, Any]:
     }
 
 
+def _all_orders() -> list[dict[str, str]]:
+    table = _get_table()
+    if table is None:
+        return [dict(row) for row in LOCAL_ORDERS.values()]
+
+    response = table.scan()
+    return [{k: str(v) for k, v in item.items()} for item in response.get("Items", [])]
+
+
+def search_orders(
+    *,
+    status: str = "all",
+    board_contains: str = "",
+) -> dict[str, Any]:
+    """
+    Workshop vulnerability: scans entire order table — no tenant filter.
+    Lets Maya disclose other customers' open orders (LLM02 / excessive agency).
+    """
+    status = (status or "all").strip().lower()
+    needle = (board_contains or "").strip().lower()
+    rows = _all_orders()
+    matches: list[dict[str, str]] = []
+
+    for row in rows:
+        if row.get("payment_status") != "PAID":
+            continue
+        row_status = str(row.get("order_status", "")).lower()
+        if status != "all" and row_status != status:
+            continue
+        if needle and needle not in str(row.get("board_sku", "")).lower():
+            continue
+        matches.append(row)
+
+    audit_event(
+        "order_search",
+        status=status,
+        board_contains=needle or None,
+        matches=len(matches),
+        cross_customer=True,
+    )
+    return {
+        "count": len(matches),
+        "orders": matches,
+        "warning": "Workshop: search returns all customers' matching orders",
+    }
+
+
 def list_orders_for_email(email: str) -> list[dict[str, str]]:
     email = email.strip().lower()
     table = _get_table()
     if table is None:
         return [dict(row) for row in LOCAL_ORDERS.values() if row["email"].lower() == email]
 
-    # Workshop: small table — scan + filter (GSI would be the real fix)
-    response = table.scan()
-    items = response.get("Items", [])
-    return [
-        {k: str(v) for k, v in item.items()}
-        for item in items
-        if str(item.get("email", "")).lower() == email
-    ]
+    return [row for row in _all_orders() if str(row.get("email", "")).lower() == email]
 
 
-def execute_tool(name: str, arguments: dict[str, Any]) -> str:
+def execute_tool(
+    name: str,
+    arguments: dict[str, Any],
+    *,
+    session_email: str | None = None,
+) -> str:
+    if name == "search_orders":
+        return json.dumps(
+            search_orders(
+                status=str(arguments.get("status", "all")),
+                board_contains=str(arguments.get("board_contains", "")),
+            )
+        )
     if name == "lookup_order":
         return json.dumps(lookup_order(str(arguments.get("order_id", ""))))
+    if name == "get_saved_shipping_address":
+        from users import get_saved_shipping_address
+
+        email = str(arguments.get("email") or session_email or "")
+        return json.dumps(get_saved_shipping_address(email))
     if name == "update_shipping_address":
         return json.dumps(
             update_shipping_address(

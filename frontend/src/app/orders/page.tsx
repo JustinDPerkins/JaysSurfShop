@@ -126,8 +126,8 @@ export default function OrdersPage() {
       </div>
 
       <p className="mt-10 text-xs text-ocean-500 leading-relaxed">
-        Workshop note: Orders page only shows <em>your</em> orders. Maya&apos;s shipping tool does not
-        check ownership — that&apos;s the IDOR story if you try another customer&apos;s order ID in chat.
+        Tip: sign in as Jordan, ask Maya which longboards are still shipping, then redirect one to
+        your address on file.
       </p>
     </div>
   );
