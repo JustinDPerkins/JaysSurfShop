@@ -491,8 +491,4 @@ def create_owasp_router(
     shop = APIRouter(tags=["shop-ai"])
     # Same handlers, shop-shaped paths — so tracers see /rag/* and /chat, not only /demo/exploit/*.
     shop.add_api_route("/rag/poison", ai_poison, methods=["POST"])
-
-    root = APIRouter()
-    root.include_router(router)
-    root.include_router(shop)
-    return root
+    return shop

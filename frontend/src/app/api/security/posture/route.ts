@@ -21,7 +21,10 @@ const BASE = {
       { path: "/api/rag/poison", note: "Unauth RAG poison write (PoC)" },
       { path: "/api/ai/packages", note: "AI package / supply-chain probe (PoC)" },
       { path: "/api/security/posture", note: "Posture metadata" },
-      { path: "/api/security/demo/*", note: "Process/cloud harness after shop-shaped HTTP" },
+      { path: "/api/catalog/preview", note: "Create-A-Board preview — Pillow RCE foothold" },
+      { path: "/api/legacy/download", note: "Path traversal sink" },
+      { path: "/api/checkout", note: "Checkout → order-webhook YAML chain" },
+      { path: "/api/chat", note: "Maya support chat" },
     ],
     private: [
       { path: "chat-rag:8001/chat", note: "RAG + Bedrock Nova / order tools → DynamoDB" },
