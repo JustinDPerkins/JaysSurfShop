@@ -1,5 +1,6 @@
 resource "aws_s3_bucket" "board_images" {
-  bucket = "${local.name_prefix}-board-images-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${local.name_prefix}-board-images-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 
   tags = {
     Name      = "${local.name_prefix}-board-images"
@@ -46,7 +47,8 @@ resource "aws_s3_account_public_access_block" "demo" {
 
 # CSPM workshop finding: intentionally public bucket
 resource "aws_s3_bucket" "demo_public_assets" {
-  bucket = "${local.name_prefix}-demo-public-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${local.name_prefix}-demo-public-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 
   tags = {
     Name        = "${local.name_prefix}-demo-public"

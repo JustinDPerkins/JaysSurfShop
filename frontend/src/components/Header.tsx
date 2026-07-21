@@ -7,10 +7,10 @@ import { useCart } from "@/context/CartContext";
 import Logo from "@/components/Logo";
 
 const NAV = [
-  { href: "/", label: "Home" },
+  { href: "/labs", label: "Labs" },
   { href: "/shop", label: "Shop" },
   { href: "/design", label: "Create-A-Board" },
-  { href: "/orders", label: "Orders" },
+  { href: "/guides", label: "Guides" },
   { href: "/chat", label: "Maya" },
 ];
 

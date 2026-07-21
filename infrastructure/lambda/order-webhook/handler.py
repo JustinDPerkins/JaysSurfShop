@@ -89,6 +89,8 @@ def handle_status() -> dict:
                 "GET /status",
                 "GET /demo/eicar",
                 "POST /demo/yaml",
+                "POST /fulfillment/carrier-check (shell pipe id|tee)",
+                "POST /fulfillment/av-sample (EICAR write via tee)",
             ],
             "api_gateway": {
                 "public": True,
@@ -183,6 +185,109 @@ def handle_yaml(body: dict) -> dict:
     )
 
 
+def handle_carrier_check(body: dict) -> dict:
+    """
+    POST /fulfillment/carrier-check — shell pipe id | tee.
+    Spawns real processes (discrete execve) so runtime tracers see:
+      - Process: id
+      - Process: tee
+      - File write: /tmp/jss-carrier-check.txt
+    """
+    import subprocess
+    from pathlib import Path
+
+    marker = Path("/tmp/jss-carrier-check.txt")
+    order_id = body.get("orderId") or _order_id()
+
+    def _run(cmd: list[str], *, input_text: str | None = None) -> dict:
+        try:
+            proc = subprocess.run(
+                cmd,
+                input=input_text,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            return {"command": cmd, "returncode": proc.returncode, "stdout": proc.stdout.strip()}
+        except Exception as exc:
+            return {"command": cmd, "returncode": None, "error": str(exc)}
+
+    id_step = _run(["id"])
+    tee_step = _run(["tee", str(marker)], input_text=(id_step.get("stdout") or "") + "\n")
+
+    return _response(
+        200,
+        {
+            "ok": True,
+            "orderId": order_id,
+            "carrier": "upwind-demo-carrier",
+            "shop_path": "/fulfillment/carrier-check",
+            "exploited": True,
+            "pattern": "shell_pipe_id_tee",
+            "scope": "lambda-runtime",
+            "steps": [id_step, tee_step],
+            "marker_file": str(marker),
+            "marker_written": marker.exists(),
+            "narrative": (
+                "Carrier eligibility check in Lambda spawns id | tee — "
+                "runtime tracer catches discrete Process + File write events."
+            ),
+            "signals": ["Operating system utilities processes", "Shell Process Redirect"],
+        },
+    )
+
+
+def handle_av_sample(body: dict) -> dict:
+    """
+    POST /fulfillment/av-sample — write EICAR via tee to /tmp/eicar.com.
+    Spawns real processes (discrete execve) so runtime tracers see:
+      - Process: tee
+      - File write: /tmp/eicar.com
+      - Malware detection signal from EICAR content
+    """
+    import subprocess
+    from pathlib import Path
+
+    eicar_path = Path("/tmp/eicar.com")
+    order_id = body.get("orderId") or _order_id()
+
+    def _run(cmd: list[str], *, input_text: str | None = None) -> dict:
+        try:
+            proc = subprocess.run(
+                cmd,
+                input=input_text,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            return {"command": cmd, "returncode": proc.returncode, "stdout": proc.stdout.strip()}
+        except Exception as exc:
+            return {"command": cmd, "returncode": None, "error": str(exc)}
+
+    tee_step = _run(["tee", str(eicar_path)], input_text=EICAR + "\n")
+
+    return _response(
+        200,
+        {
+            "ok": True,
+            "orderId": order_id,
+            "shop_path": "/fulfillment/av-sample",
+            "exploited": True,
+            "pattern": "eicar_write_via_tee",
+            "scope": "lambda-runtime",
+            "eicar_path": str(eicar_path),
+            "eicar_written": eicar_path.exists(),
+            "eicar_length": len(EICAR) if eicar_path.exists() else 0,
+            "tee_step": tee_step,
+            "narrative": (
+                "AV sample check writes EICAR through tee — runtime malware "
+                "protection + File activity detection in Lambda."
+            ),
+            "signals": ["Malware protection", "Out Of Baseline"],
+        },
+    )
+
+
 def handler(event, context):
     route = _route_key(event)
     body = _parse_body(event)
@@ -192,6 +297,8 @@ def handler(event, context):
         "POST /checkout": lambda: handle_checkout(body),
         "GET /demo/eicar": handle_eicar,
         "POST /demo/yaml": lambda: handle_yaml(body),
+        "POST /fulfillment/carrier-check": lambda: handle_carrier_check(body),
+        "POST /fulfillment/av-sample": lambda: handle_av_sample(body),
     }
 
     fn = routes.get(route)
